@@ -14,7 +14,7 @@ class TransactionController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Transaction::query();
+        $query = Transaction::where('nodo_id', $request->attributes->get('authenticated_node')->id);
         if ($request->filled('cuenta')) {
             $query->where(function ($query) use ($request): void {
                 $query->where('cuenta_origen', $request->cuenta)
