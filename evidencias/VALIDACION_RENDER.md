@@ -38,3 +38,18 @@ Capturas reales: [Servicio Live](render_servicio_live.png) y [Panel de nodos](re
 ## Pendiente
 
 La ejecución completa de los nodos 2 y 3 y el inventario físico del ATM. Las carpetas 02 y 03 de Postman están preparadas y desactivadas hasta confirmar las implementaciones y sus contratos. La prueba del Core no equivale a una retirada física realizada por el Nodo 3.
+
+## Revisión del reporte 500 e historial por nodo
+
+Revisión posterior del 9 de octubre de 2026, sobre la versión funcional `616b454` publicada en Render:
+
+- `DB_PASSWORD` está definida y coincide con la configuración privada usada para el despliegue. El host verificado es `aws-0-us-east-1.pooler.supabase.com`, puerto `5432`, base `postgres`, usuario `postgres.rtfdnrwcjwovpplmfthc` y SSL `require`.
+- Las consultas reales devolvieron 401 sin clave, 401 con clave falsa y 200 con las claves válidas de sucursal y cajero. El error 500 reportado no se reprodujo; no se atribuye a una contraseña vacía sin evidencia.
+- Los filtros `SQLSTATE` y `500` en los registros de las últimas cuatro horas no mostraron coincidencias durante esta revisión.
+- La sucursal recibió únicamente el depósito de apertura; el cajero recibió únicamente su retiro para la misma cuenta. Ambos historiales respondieron 200.
+- PostgreSQL aislado: 18 pruebas aprobadas, 62 aserciones. Se añadieron casos de clave inválida y de aislamiento del historial con y sin filtro de cuenta, incluyendo una cuenta operada solo por otro nodo.
+- Postman/Newman: carpeta 00, 4 solicitudes y 9 aserciones; carpeta 01, 9 solicitudes y 18 aserciones. Cero fallos, saldo final $700, retiro idempotente y ambos historiales locales separados.
+
+La colección exportable contiene 30 solicitudes. Las carpetas conjuntas 02 y 03 siguen pendientes de las implementaciones reales de los nodos 2 y 3.
+
+La integración de GitHub incluye el repositorio del Nodo 1. El servicio usa Git Provider, rama `main`, runtime Docker y Auto-Deploy **On Commit**; `render.yaml` declara `autoDeployTrigger: commit`.

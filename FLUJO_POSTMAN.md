@@ -37,4 +37,4 @@ Guardar el resultado real del Runner con fecha, URL de cada nodo, número de pru
 
 Estado de esta entrega: colección y scripts preparados; la ejecución conjunta de los nodos 2 y 3 está pendiente. No se han generado resultados simulados ni capturas de una integración todavía inexistente.
 
-Validado el 9 de octubre de 2026: Nodo 1 en https://banco-central-nodo1.onrender.com, acceso administrativo y nodos de demostración creados. Carpetas 00 y 01 ejecutadas con Newman 6.2.2 (runtime de Postman): 11 solicitudes y 22 aserciones, cero fallos. Carpetas 02 y 03 permanecen sin ejecutar.
+Validado el 9 de octubre de 2026: Nodo 1 en https://banco-central-nodo1.onrender.com, acceso administrativo y nodos de demostración creados. Carpetas 00 y 01 ejecutadas con Newman 6.2.2 (runtime de Postman): 13 solicitudes y 27 aserciones, cero fallos. Se comprobó el rechazo 401 con clave falsa y que el historial de cada nodo solo contiene sus propias operaciones. Carpetas 02 y 03 permanecen sin ejecutar.

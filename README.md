@@ -91,4 +91,4 @@ Render es el destino acordado con el profesor. Vercel y Coolify son opcionales. 
 
 La colección conjunta se entrega en `postman_integracion_collection.json`, con el entorno `postman_integracion_environment.json` y las instrucciones en [FLUJO_POSTMAN.md](FLUJO_POSTMAN.md). La integración completa se ejecutará cuando los nodos 2 y 3 terminen.
 
-Publicado y verificado: [Banco Central](https://banco-central-nodo1.onrender.com) · [Panel administrativo](https://banco-central-nodo1.onrender.com/admin/login). Se ejecutaron 14 pruebas PostgreSQL aisladas y 22 aserciones Postman sobre Render, sin fallos. Evidencia: [VALIDACION_RENDER.md](evidencias/VALIDACION_RENDER.md).
+Publicado y verificado: [Banco Central](https://banco-central-nodo1.onrender.com) · [Panel administrativo](https://banco-central-nodo1.onrender.com/admin/login). Se ejecutaron 18 pruebas PostgreSQL aisladas (62 aserciones) y 27 aserciones Postman sobre Render, sin fallos. El historial de la API está limitado al nodo que procesó cada operación. Evidencia: [VALIDACION_RENDER.md](evidencias/VALIDACION_RENDER.md).

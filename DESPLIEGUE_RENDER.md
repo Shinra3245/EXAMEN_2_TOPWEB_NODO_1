@@ -40,7 +40,7 @@ Render Free puede suspender el servicio tras inactividad y usa disco efímero; l
 - URL pública: https://banco-central-nodo1.onrender.com
 - Panel: https://banco-central-nodo1.onrender.com/admin/login
 - Servicio: `srv-db4kj3s9v7es73a6vpr0`; Blueprint: `exs-db4kd68m7kps73c5vuo0`.
-- Versión desplegada: `f51583f`. La construcción en Render terminó con estado Live.
+- Versión funcional validada: `616b454`, con historial separado por nodo y estado Live. Consultar Deploys para identificar la versión actual tras cada push.
 - Administrador: `22030591@itcelaya.edu.mx`; contraseña en `.env.admin.local`.
 - Nodos de demostración: sucursal con $1,000 asignados y cajero con $1,500 asignados; claves en `.env.nodos.local`. Ese efectivo central es una asignación y no sustituye el inventario local del ATM.
-- Validación: 14 pruebas PostgreSQL y 22 aserciones Postman sobre Render aprobadas. Detalle en `evidencias/VALIDACION_RENDER.md`.
+- Validación: 18 pruebas PostgreSQL (62 aserciones) y 27 aserciones Postman sobre Render aprobadas. Detalle en `evidencias/VALIDACION_RENDER.md`.
