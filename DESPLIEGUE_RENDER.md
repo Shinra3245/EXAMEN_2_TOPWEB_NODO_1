@@ -23,7 +23,7 @@ El administrador inicial usa el correo autorizado por el usuario. Su contraseña
 
 Crear el Blueprint con el repositorio `Shinra3245/EXAMEN_2_TOPWEB_NODO_1`, rama `main` y archivo raíz `render.yaml`. El plan se declara explícitamente `free`. Si el repositorio no figura entre las integraciones, se puede seleccionar mediante su URL pública.
 
-La publicación de versiones del servicio es manual (`autoDeployTrigger: off`) para mantener una versión conocida mientras trabajan otros agentes. Antes de publicar otra versión, ejecutar las pruebas y actualizar el Blueprint cuando cambie la configuración. [Referencia de Render](https://render.com/docs/blueprint-spec).
+El Blueprint declara despliegue continuo con `autoDeployTrigger: commit`: cada push a `main` debe publicar una versión nueva. Este campo sustituye al antiguo `autoDeploy: true`. Render necesita acceso al repositorio mediante su integración de GitHub; seleccionar únicamente una URL pública no completa esa conexión. Comprobar en Settings que Auto-Deploy diga **On Commit** y verificar un despliegue provocado por un push. Ejecutar las pruebas antes de publicar cambios. [Referencia de Render](https://render.com/docs/blueprint-spec), [conexión del proveedor Git](https://render.com/docs/git-provider).
 
 La migración inicial reconoce las cuatro tablas ya existentes sin repetir `001_schema.sql`. La migración siguiente añade `idempotency_key`; no borra datos ni elimina la protección del ledger. Nunca ejecutar `migrate:fresh` en Supabase.
 

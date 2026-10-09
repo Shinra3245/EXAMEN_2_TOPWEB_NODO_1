@@ -2,8 +2,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
 
 class AdminPanelTest extends TestCase
@@ -13,11 +11,11 @@ class AdminPanelTest extends TestCase
         $response = $this->get('/admin');
         $response->assertRedirect(route('admin.login'));
     }
-    
+
     public function test_can_view_login_form()
     {
         $response = $this->get('/admin/login');
         $response->assertStatus(200);
-        $response->assertSee('Iniciar Sesión');
+        $response->assertSee('name="email"', false)->assertSee('name="password"', false);
     }
 }

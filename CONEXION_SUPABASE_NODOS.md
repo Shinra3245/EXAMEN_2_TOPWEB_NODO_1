@@ -26,7 +26,9 @@ Enviar `X-API-KEY`, `Accept: application/json` y `Content-Type: application/json
 | Abrir cuenta, solo sucursal | `POST /accounts` | `numero_cuenta`, `nombre_titular`, `saldo_inicial`, `idempotency_key` |
 | Consultar cuenta | `GET /accounts/{numero_cuenta}` | Respuesta: `numero_cuenta`, `nombre_titular`, `saldo_global`, `estado` |
 | Operación monetaria | `POST /transactions` | `tipo`, `monto`, `idempotency_key`; `cuenta_origen` para retiro, `cuenta_destino` para depósito, ambas para transferencia |
-| Historial | `GET /transactions?cuenta=...` | Respuesta paginada: movimientos en `data` |
+| Historial | `GET /transactions?cuenta=...` | Respuesta paginada: movimientos del nodo autenticado en `data` |
+
+El historial es local al nodo que procesa cada operación: la sucursal ve su depósito de apertura y el cajero sus retiros. Para conocer el saldo actual de la cuenta usar `GET /accounts/{numero_cuenta}`.
 
 La apertura registra el saldo inicial positivo como `deposito`, conforme al esquema existente. Cada movimiento conserva `nodo_id`. El retiro devuelve 201 la primera vez y 200 si se reintenta con la misma clave y los mismos datos; reutilizar la clave con otros datos o desde otro nodo devuelve 409. Conservar la clave en todo reintento y crear otra para una operación nueva.
 

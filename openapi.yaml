@@ -3,7 +3,7 @@ info:
   title: API Banco Central - Sistema Bancario Distribuido
   description: Endpoints del núcleo del Banco Central para la comunicación con Sucursales
     y Cajeros (ATMs).
-  version: 1.0.1
+  version: 1.0.2
 servers:
 - url: https://banco-central-nodo1.onrender.com/api
   description: Nodo 1 desplegado y validado en Render
@@ -118,8 +118,9 @@ paths:
           description: API Key ausente, inválida o de nodo inactivo.
     get:
       summary: Consultar historial de transacciones
-      description: Permite a un nodo autorizado consultar el historial de operaciones,
-        filtrable por cuenta.
+      description: Devuelve exclusivamente las operaciones procesadas por el nodo
+        autenticado (nodo_id), filtrables por cuenta. La sucursal no ve retiros
+        procesados por un cajero; el saldo global se consulta en /accounts/{numero_cuenta}.
       security:
       - ApiKeyAuth: []
       parameters:

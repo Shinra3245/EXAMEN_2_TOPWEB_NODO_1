@@ -84,7 +84,7 @@
                   "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
                   "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
                   "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
-                  "check(\"Formulario de acceso\",()=>pm.expect(pm.response.text()).to.include(\"Iniciar Sesión\"));",
+                  "check(\"Formulario de acceso\",()=>{const html=pm.response.text();pm.expect(html).to.include('name=\"email\"');pm.expect(html).to.include('name=\"password\"');});",
                   "finish();"
                 ]
               }
@@ -118,8 +118,7 @@
                   "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
                   "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([401]));",
                   "check(\"Error JSON de autenticación\",()=>pm.expect(pm.response.json()).to.have.property(\"error\"));",
-                  "finish();",
-                  "pm.execution.setNextRequest(null);"
+                  "finish();"
                 ]
               }
             }
@@ -133,6 +132,45 @@
               }
             ],
             "url": "{{central_url}}/api/accounts/cuenta-inexistente"
+          },
+          "response": []
+        },
+        {
+          "id": "b07b27e1-bc06-4562-b5ac-3b802a0ba5f4",
+          "name": "00.04 - API con clave falsa rechazada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([401]));",
+                  "check(\"Error JSON de autenticación\",()=>pm.expect(pm.response.json()).to.have.property(\"error\"));",
+                  "check(\"Clave inválida rechazada\",()=>pm.expect(pm.response.json().error).to.eql(\"Invalid or inactive API Key\"));",
+                  "finish();",
+                  "pm.execution.setNextRequest(null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "postman-clave-invalida-examen"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions"
           },
           "response": []
         }
@@ -481,7 +519,7 @@
         },
         {
           "id": "02823430-ca7c-40af-b6c1-1e6c1a62bc9c",
-          "name": "01.08 - Historial central sin duplicados",
+          "name": "01.08 - Historial del cajero: retiro único",
           "event": [
             {
               "listen": "test",
@@ -495,6 +533,43 @@
                   "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
                   "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
                   "check(\"Un solo retiro de 300\",()=>{const j=pm.response.json();const rows=Array.isArray(j)?j:j.data;pm.expect(rows).to.be.an('array');const found=rows.filter(t=>t.idempotency_key===pm.environment.get('retiro_idempotency'));pm.expect(found).to.have.lengthOf(1);pm.expect(found[0].tipo).to.eql('retiro');pm.expect(cents(found[0].monto)).to.eql(30000);pm.expect(found[0].nodo_id).to.be.a('string').and.not.empty;});",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions?cuenta={{numero_cuenta}}"
+          },
+          "response": []
+        },
+        {
+          "id": "3f85f6e3-1486-4ed3-9524-7a241d34cec2",
+          "name": "01.09 - Historial local de la sucursal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Solo el depósito de apertura de la sucursal\",()=>{const rows=pm.response.json().data;pm.expect(rows).to.have.lengthOf(1);pm.expect(rows[0].tipo).to.eql(\"deposito\");pm.expect(rows[0].cuenta_destino).to.eql(pm.environment.get(\"numero_cuenta\"));pm.expect(cents(rows[0].monto)).to.eql(100000);});",
                   "finish();",
                   "pm.execution.setNextRequest(null);"
                 ]
@@ -973,7 +1048,7 @@
         },
         {
           "id": "fbd9166d-82ab-457b-b978-88e95d4039ba",
-          "name": "02.12 - Historial central: retiro único",
+          "name": "02.12 - Historial del cajero: retiro único",
           "event": [
             {
               "listen": "test",
@@ -1002,7 +1077,7 @@
               },
               {
                 "key": "X-API-KEY",
-                "value": "{{sucursal_api_key}}"
+                "value": "{{cajero_api_key}}"
               }
             ],
             "url": "{{central_url}}/api/transactions?cuenta={{numero_cuenta}}"
@@ -1220,7 +1295,7 @@
               },
               {
                 "key": "X-API-KEY",
-                "value": "{{sucursal_api_key}}"
+                "value": "{{cajero_api_key}}"
               }
             ],
             "url": "{{central_url}}/api/transactions?cuenta={{numero_cuenta}}"

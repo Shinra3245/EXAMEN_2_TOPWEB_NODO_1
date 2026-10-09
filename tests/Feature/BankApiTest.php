@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class BankApiTest extends TestCase
@@ -40,6 +41,53 @@ class BankApiTest extends TestCase
         ]);
 
         $response->assertStatus(401);
+    }
+
+    public function test_invalid_api_key_returns_401(): void
+    {
+        $response = $this->withHeader('X-API-KEY', 'invalid-test-key')->getJson('/api/transactions');
+
+        $response->assertUnauthorized()->assertJson(['error' => 'Invalid or inactive API Key']);
+    }
+
+    public static function historyScopes(): array
+    {
+        return [
+            'historial completo del nodo' => ['', 2],
+            'cuenta como origen y destino' => ['?cuenta=HISTORY-LOCAL', 2],
+            'cuenta usada solo por otro nodo' => ['?cuenta=HISTORY-OTHER', 0],
+        ];
+    }
+
+    #[DataProvider('historyScopes')]
+    public function test_history_only_returns_transactions_processed_by_the_authenticated_node(string $query, int $count): void
+    {
+        $otherNodeId = (string) Str::uuid();
+        DB::table('bank_nodes')->insert([
+            'id' => $otherNodeId, 'nombre' => 'Otro nodo', 'tipo' => 'cajero',
+            'responsable' => 'Prueba', 'api_key_hash' => hash('sha256', 'other-test-key'),
+        ]);
+        foreach (['HISTORY-LOCAL', 'HISTORY-OTHER'] as $number) {
+            DB::table('users_accounts')->insert([
+                'numero_cuenta' => $number, 'nombre_titular' => 'Prueba', 'sucursal_id' => $this->nodeId,
+            ]);
+        }
+        foreach ([$this->nodeId, $otherNodeId] as $nodeId) {
+            DB::table('transactions')->insert([
+                'nodo_id' => $nodeId, 'tipo' => 'deposito', 'cuenta_destino' => 'HISTORY-LOCAL', 'monto' => 100,
+            ]);
+            DB::table('transactions')->insert([
+                'nodo_id' => $nodeId, 'tipo' => 'retiro', 'cuenta_origen' => 'HISTORY-LOCAL', 'monto' => 10,
+            ]);
+        }
+        DB::table('transactions')->insert([
+            'nodo_id' => $otherNodeId, 'tipo' => 'deposito', 'cuenta_destino' => 'HISTORY-OTHER', 'monto' => 50,
+        ]);
+
+        $response = $this->withHeader('X-API-KEY', $this->nodeKey)->getJson('/api/transactions'.$query);
+
+        $response->assertOk()->assertJsonCount($count, 'data')->assertJsonPath('total', $count)
+            ->assertJsonMissing(['nodo_id' => $otherNodeId]);
     }
 
     public function test_create_account_and_deposit_initial_balance()
