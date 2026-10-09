@@ -1,0 +1,133 @@
+{
+  "id": "953d6b52-d36f-459f-8016-8679be2a010d",
+  "name": "Examen - Render - sin credenciales",
+  "values": [
+    {
+      "key": "central_url",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "sucursal_url",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "cajero_url",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "sucursal_api_key",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "cajero_api_key",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "permitir_operaciones",
+      "value": "false",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "contratos_conjuntos_confirmados",
+      "value": "false",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "atm_estado_path",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "atm_retiro_path",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "atm_saldo_path",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "atm_estado_campo",
+      "value": "efectivo_disponible",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "atm_saldo_campo",
+      "value": "saldo_global",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "atm_retiro_body",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "numero_cuenta",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "apertura_idempotency",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "retiro_idempotency",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "monto_retiro",
+      "value": "300",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "efectivo_inicial_centavos",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "retiro_transaction_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "saldo_antes_rechazo_centavos",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "retiro_rechazado_idempotency",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

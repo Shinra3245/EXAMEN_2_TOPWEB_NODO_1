@@ -65,10 +65,7 @@ Las pruebas deben ejecutarse contra PostgreSQL aislado en Docker. No utilizar la
 
 Para ejecutar las pruebas localmente:
 ```bash
-# Iniciar Sail
-./vendor/bin/sail up -d
-# Ejecutar pruebas
-./vendor/bin/sail artisan test
+sh test-postgres.sh
 ```
 Se verifican cuentas, idempotencia, fondos insuficientes, transferencias, ledger inmutable y compatibilidad del panel con el esquema real. La prueba HTTP de concurrencia requiere un servidor aislado que comparta exclusivamente la base de pruebas.
 
@@ -92,4 +89,4 @@ El flujo típico de un Nodo (Sucursal/Cajero) es:
 
 Render es el destino acordado con el profesor. Vercel y Coolify son opcionales. El servicio usa Docker, PHP 8.5, el pooler de sesión de Supabase y variables privadas de Render. Consulte [DESPLIEGUE_RENDER.md](DESPLIEGUE_RENDER.md) para configuración, migraciones, validación y actualización.
 
-La colección conjunta de los tres nodos se encuentra en `../INTEGRACION/postman/`; las instrucciones están en `../INTEGRACION/README.md`. La integración completa se ejecutará cuando los nodos 2 y 3 terminen.
+La colección conjunta se entrega en `postman_integracion_collection.json`, con el entorno `postman_integracion_environment.json` y las instrucciones en [FLUJO_POSTMAN.md](FLUJO_POSTMAN.md). La integración completa se ejecutará cuando los nodos 2 y 3 terminen.

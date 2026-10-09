@@ -1,0 +1,1233 @@
+{
+  "info": {
+    "_postman_id": "0bae3248-5a4d-459d-9c75-e790cf30f55a",
+    "name": "Examen - Banco distribuido - Render y tres nodos",
+    "description": "Seleccionar una sola carpeta en Collection Runner, una iteración. Credenciales vacías; operaciones desactivadas de origen. Leer FLUJO_POSTMAN.md o INTEGRACION/README.md. Preparado: la integración 02/03 sigue pendiente hasta finalizar Nodo 2 y Nodo 3.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const name=pm.info.requestName;",
+          "const required=['central_url'];",
+          "let reason='';",
+          "if(!name.startsWith('00.')) {",
+          " required.push('sucursal_api_key','cajero_api_key');",
+          " if(pm.environment.get('permitir_operaciones')!=='true') reason='Activa permitir_operaciones solo cuando los nodos estén listos para pruebas.';",
+          "}",
+          "if(name.startsWith('02.')||name.startsWith('03.')) {",
+          " required.push('sucursal_url','cajero_url','atm_estado_path','atm_retiro_path','atm_saldo_path','atm_retiro_body','atm_estado_campo','atm_saldo_campo');",
+          " if(pm.environment.get('contratos_conjuntos_confirmados')!=='true') reason='Primero confirmar rutas y JSON reales del Nodo 3 y la adaptación del Nodo 2.';",
+          " if(!String(pm.environment.get('atm_retiro_body')||'').includes('{{retiro_idempotency}}')) reason='El cuerpo del retiro debe usar {{retiro_idempotency}} para probar reintentos.';",
+          " if(name.startsWith('03.')&&!pm.environment.get('numero_cuenta')) reason='Ejecuta primero el flujo conjunto para obtener una cuenta.';",
+          "}",
+          "const missing=required.filter(k=>!String(pm.environment.get(k)||'').trim());",
+          "if(missing.length) reason='Faltan variables: '+missing.join(', ');",
+          "for(const k of required.filter(k=>k.endsWith('_url'))) { const v=String(pm.environment.get(k)||''); if(v && (!/^https?:\\/\\//.test(v)||/supabase\\.co/.test(v))) reason=k+' debe contener la URL HTTP del nodo, no la de Supabase.'; }",
+          "if(reason) { pm.execution.setNextRequest(null); pm.execution.skipRequest(); throw new Error(reason); }"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Render: disponibilidad y acceso",
+      "item": [
+        {
+          "id": "c128854b-cf57-437e-809b-e5f63458746b",
+          "name": "00.01 - Salud de Laravel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Servidor saludable\",()=>pm.expect(pm.response.text()).to.include(\"Application up\"));",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/up"
+          },
+          "response": []
+        },
+        {
+          "id": "a843d3c9-9180-45a9-847a-88fc66330fa3",
+          "name": "00.02 - Formulario del administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Formulario de acceso\",()=>pm.expect(pm.response.text()).to.include(\"Iniciar Sesión\"));",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/admin/login"
+          },
+          "response": []
+        },
+        {
+          "id": "bf705731-ae31-4853-8851-780c44cf118c",
+          "name": "00.03 - API sin clave rechazada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([401]));",
+                  "check(\"Error JSON de autenticación\",()=>pm.expect(pm.response.json()).to.have.property(\"error\"));",
+                  "finish();",
+                  "pm.execution.setNextRequest(null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts/cuenta-inexistente"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 - Nodo 1: operaciones sobre cuenta nueva",
+      "description": "Prueba del Core. No comprueba el inventario físico del Nodo 3. Usa claves propias de sucursal y cajero.",
+      "item": [
+        {
+          "id": "293301f5-8eeb-4d83-ad94-e1f4a569d644",
+          "name": "01.01 - Sucursal abre cuenta con 1000",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id=pm.variables.replaceIn('{{$guid}}');",
+                  "pm.environment.set('numero_cuenta','PM-'+id);",
+                  "pm.environment.set('apertura_idempotency','apertura-'+id);",
+                  "pm.environment.set('retiro_idempotency','retiro-'+id);",
+                  "pm.environment.unset('retiro_transaction_id');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "check(\"Saldo confirmado\",()=>{const j=pm.response.json();const a=j.account||j.cuenta||j;pm.expect(cents(a.saldo_global)).to.eql(100000);});",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numero_cuenta\": \"{{numero_cuenta}}\",\n  \"nombre_titular\": \"Cliente Postman\",\n  \"saldo_inicial\": 1000,\n  \"idempotency_key\": \"{{apertura_idempotency}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "10965fc5-1417-478b-ab8a-60340575b739",
+          "name": "01.02 - Central confirma 1000",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Saldo confirmado\",()=>{const j=pm.response.json();const a=j.account||j.cuenta||j;pm.expect(cents(a.saldo_global)).to.eql(100000);});",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts/{{numero_cuenta}}"
+          },
+          "response": []
+        },
+        {
+          "id": "c6556b2d-4306-4e60-b23d-382a85dfa245",
+          "name": "01.03 - Retiro central de 300",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "check(\"Retiro registrado\",()=>{const t=pm.response.json().transaction;pm.expect(cents(t.monto)).to.eql(30000);pm.expect(t.tipo).to.eql(\"retiro\");pm.expect(t.nodo_id).to.be.a(\"string\").and.not.empty;pm.environment.set(\"retiro_transaction_id\",t.id);});",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"retiro\",\n  \"cuenta_origen\": \"{{numero_cuenta}}\",\n  \"monto\": 300,\n  \"idempotency_key\": \"{{retiro_idempotency}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "168c99e1-e5e3-49c7-9b96-90b8c6bf118c",
+          "name": "01.04 - Reintento idéntico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Misma transacción\",()=>pm.expect(pm.response.json().transaction.id).to.eql(pm.environment.get(\"retiro_transaction_id\")));",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"retiro\",\n  \"cuenta_origen\": \"{{numero_cuenta}}\",\n  \"monto\": 300,\n  \"idempotency_key\": \"{{retiro_idempotency}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "409f1a0a-d1ae-4208-8a19-53fe4e74b706",
+          "name": "01.05 - Reintento cambiado rechazado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([409]));",
+                  "check(\"Conflicto de idempotencia\",()=>pm.expect(pm.response.json().message).to.include(\"idempotencia\"));",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"retiro\",\n  \"cuenta_origen\": \"{{numero_cuenta}}\",\n  \"monto\": 301,\n  \"idempotency_key\": \"{{retiro_idempotency}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "4552a459-897a-40df-84a7-96a947189a38",
+          "name": "01.06 - Fondos insuficientes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([400]));",
+                  "check(\"Motivo del rechazo\",()=>pm.expect(pm.response.json().message).to.include(\"Fondos insuficientes\"));",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"retiro\",\n  \"cuenta_origen\": \"{{numero_cuenta}}\",\n  \"monto\": 10000,\n  \"idempotency_key\": \"fondos-{{retiro_idempotency}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "eaf6ccb4-f2fe-4705-a05c-19ffbff18a62",
+          "name": "01.07 - Saldo final sin duplicados: 700",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Saldo confirmado\",()=>{const j=pm.response.json();const a=j.account||j.cuenta||j;pm.expect(cents(a.saldo_global)).to.eql(70000);});",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts/{{numero_cuenta}}"
+          },
+          "response": []
+        },
+        {
+          "id": "02823430-ca7c-40af-b6c1-1e6c1a62bc9c",
+          "name": "01.08 - Historial central sin duplicados",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Un solo retiro de 300\",()=>{const j=pm.response.json();const rows=Array.isArray(j)?j:j.data;pm.expect(rows).to.be.an('array');const found=rows.filter(t=>t.idempotency_key===pm.environment.get('retiro_idempotency'));pm.expect(found).to.have.lengthOf(1);pm.expect(found[0].tipo).to.eql('retiro');pm.expect(cents(found[0].monto)).to.eql(30000);pm.expect(found[0].nodo_id).to.be.a('string').and.not.empty;});",
+                  "finish();",
+                  "pm.execution.setNextRequest(null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions?cuenta={{numero_cuenta}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Flujo conjunto: 1000 -> 300 -> 700",
+      "description": "Preparado para ejecutar después de terminar los tres nodos y confirmar las rutas/JSON del ATM. La sucursal debe adaptar su cliente a la API del Nodo 1.",
+      "item": [
+        {
+          "id": "520bb0ce-799c-42e3-ad55-ad2b055c3f21",
+          "name": "02.01 - Sucursal conectada al Banco Central",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.unset('numero_cuenta');",
+                  "const id=pm.variables.replaceIn('{{$guid}}');",
+                  "pm.environment.set('numero_cuenta','PM-'+id);",
+                  "pm.environment.set('apertura_idempotency','apertura-'+id);",
+                  "pm.environment.set('retiro_idempotency','retiro-'+id);",
+                  "pm.environment.unset('retiro_transaction_id');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Sin datos simulados\",()=>{const j=pm.response.json();pm.expect(j.conectado).to.eql(true);pm.expect(j.modo_prueba).to.eql(false);});",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sucursal_url}}/api/estado"
+          },
+          "response": []
+        },
+        {
+          "id": "1e265cb1-3ff6-4014-8109-eac51fbd40a5",
+          "name": "02.02 - Efectivo inicial del cajero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Hay efectivo para el retiro\",()=>{const c=cents(field(pm.response.json(),pm.environment.get(\"atm_estado_campo\")));pm.expect(c).to.be.at.least(30000);pm.environment.set(\"efectivo_inicial_centavos\",String(c));});",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{cajero_url}}{{atm_estado_path}}"
+          },
+          "response": []
+        },
+        {
+          "id": "850b85d9-4ef8-4665-a58e-543323567659",
+          "name": "02.03 - Sucursal abre cuenta con 1000",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "check(\"Cuenta creada en sucursal\",()=>{const j=pm.response.json();const a=j.account||j.cuenta||j;pm.expect(a.numero_cuenta).to.be.a(\"string\").and.not.empty;pm.expect(cents(a.saldo_global===undefined?a.saldo:a.saldo_global)).to.eql(100000);pm.environment.set(\"numero_cuenta\",a.numero_cuenta);});",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sucursal_url}}/api/cuentas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titular\": \"Cliente Postman {{apertura_idempotency}}\",\n  \"saldo_inicial\": 1000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "7f4ba7d6-4489-42bf-97ec-d4e0993b4524",
+          "name": "02.04 - Central confirma 1000",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Saldo confirmado\",()=>{const j=pm.response.json();const a=j.account||j.cuenta||j;pm.expect(cents(a.saldo_global)).to.eql(100000);});",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts/{{numero_cuenta}}"
+          },
+          "response": []
+        },
+        {
+          "id": "67a2e653-830d-411f-b4d3-2fce8d0f377e",
+          "name": "02.05 - Cajero consulta 1000",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Saldo consultado por cajero\",()=>pm.expect(cents(field(pm.response.json(),pm.environment.get(\"atm_saldo_campo\")))).to.eql(100000));",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{cajero_url}}{{atm_saldo_path}}"
+          },
+          "response": []
+        },
+        {
+          "id": "b1e34fe9-28de-4347-9369-14cb0d5e73ef",
+          "name": "02.06 - Cajero retira 300",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('monto_retiro','300');",
+                  "const template=pm.environment.get('atm_retiro_body');",
+                  "const payload=JSON.parse(pm.variables.replaceIn(template));",
+                  "pm.variables.set('atm_payload',JSON.stringify(payload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "check(\"Operación aceptada\",()=>pm.expect(pm.response.json()).to.be.an(\"object\"));",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{cajero_url}}{{atm_retiro_path}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{{atm_payload}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "19d0e936-f57e-4f6d-ab79-de92915a6b26",
+          "name": "02.07 - Central confirma 700",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Saldo confirmado\",()=>{const j=pm.response.json();const a=j.account||j.cuenta||j;pm.expect(cents(a.saldo_global)).to.eql(70000);});",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts/{{numero_cuenta}}"
+          },
+          "response": []
+        },
+        {
+          "id": "6dcd586f-b888-41fb-82ef-36e132b3562c",
+          "name": "02.08 - Cajero reintenta la misma operación",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('monto_retiro','300');",
+                  "const template=pm.environment.get('atm_retiro_body');",
+                  "const payload=JSON.parse(pm.variables.replaceIn(template));",
+                  "pm.variables.set('atm_payload',JSON.stringify(payload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "check(\"Reintento aceptado\",()=>pm.expect(pm.response.json()).to.be.an(\"object\"));",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{cajero_url}}{{atm_retiro_path}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{{atm_payload}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "b794c743-fc03-40d7-b05e-31c1a8ed7822",
+          "name": "02.09 - El efectivo disminuyó solo 300",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Efectivo sin doble descuento\",()=>{const c=cents(field(pm.response.json(),pm.environment.get(\"atm_estado_campo\")));pm.expect(c).to.eql(Number(pm.environment.get(\"efectivo_inicial_centavos\"))-30000);});",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{cajero_url}}{{atm_estado_path}}"
+          },
+          "response": []
+        },
+        {
+          "id": "39ac5262-8eb3-4090-a513-91aad0a6c767",
+          "name": "02.10 - Cajero confirma 700",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Saldo consultado por cajero\",()=>pm.expect(cents(field(pm.response.json(),pm.environment.get(\"atm_saldo_campo\")))).to.eql(70000));",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{cajero_url}}{{atm_saldo_path}}"
+          },
+          "response": []
+        },
+        {
+          "id": "62c5294d-b017-4026-9dc6-9eafbbb29978",
+          "name": "02.11 - Sucursal confirma 700",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Saldo visto por sucursal\",()=>{const j=pm.response.json();const a=j.account||j.cuenta||j;pm.expect(cents(a.saldo_global===undefined?a.saldo:a.saldo_global)).to.eql(70000);});",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sucursal_url}}/api/cuentas/{{numero_cuenta}}"
+          },
+          "response": []
+        },
+        {
+          "id": "fbd9166d-82ab-457b-b978-88e95d4039ba",
+          "name": "02.12 - Historial central: retiro único",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Un solo retiro de 300\",()=>{const j=pm.response.json();const rows=Array.isArray(j)?j:j.data;pm.expect(rows).to.be.an('array');const found=rows.filter(t=>t.idempotency_key===pm.environment.get('retiro_idempotency'));pm.expect(found).to.have.lengthOf(1);pm.expect(found[0].tipo).to.eql('retiro');pm.expect(cents(found[0].monto)).to.eql(30000);pm.expect(found[0].nodo_id).to.be.a('string').and.not.empty;});",
+                  "finish();",
+                  "pm.execution.setNextRequest(null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions?cuenta={{numero_cuenta}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Cajero sin efectivo (preparación manual)",
+      "description": "Primero ejecutar el flujo 02 y después configurar el ATM con efectivo local cero. Requiere cuenta con saldo >=100.",
+      "item": [
+        {
+          "id": "d655cfee-8966-47b3-b35b-4ea6f1381067",
+          "name": "03.01 - Cajero preparado con efectivo cero",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('retiro_rechazado_idempotency','sin-caja-'+pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Efectivo local cero\",()=>pm.expect(cents(field(pm.response.json(),pm.environment.get(\"atm_estado_campo\")))).to.eql(0));",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{cajero_url}}{{atm_estado_path}}"
+          },
+          "response": []
+        },
+        {
+          "id": "cc59faaf-6e50-43a3-9357-0a3834a1df74",
+          "name": "03.02 - Saldo anterior al rechazo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Hay fondos suficientes\",()=>{const c=cents(pm.response.json().saldo_global);pm.expect(c).to.be.at.least(10000);pm.environment.set(\"saldo_antes_rechazo_centavos\",String(c));});",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts/{{numero_cuenta}}"
+          },
+          "response": []
+        },
+        {
+          "id": "580a3ec1-815e-4cdb-b8c7-8be154a12b90",
+          "name": "03.03 - Retiro local rechazado",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('monto_retiro','100');",
+                  "pm.variables.set('retiro_idempotency',pm.environment.get('retiro_rechazado_idempotency'));",
+                  "const template=pm.environment.get('atm_retiro_body');",
+                  "pm.variables.set('atm_payload',JSON.stringify(JSON.parse(pm.variables.replaceIn(template))));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([400, 409, 422]));",
+                  "check(\"Respuesta de rechazo\",()=>pm.expect(pm.response.json()).to.be.an(\"object\"));",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{cajero_url}}{{atm_retiro_path}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{{atm_payload}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "6d274de6-2493-4b01-a16e-1024b1253602",
+          "name": "03.04 - Central conserva el saldo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Sin débito central\",()=>pm.expect(cents(pm.response.json().saldo_global)).to.eql(Number(pm.environment.get(\"saldo_antes_rechazo_centavos\"))));",
+                  "finish();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts/{{numero_cuenta}}"
+          },
+          "response": []
+        },
+        {
+          "id": "2adeee1f-37ea-43e7-915f-a1d2845f0dc7",
+          "name": "03.05 - No se registró el retiro rechazado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let ok = true;",
+                  "function check(name, fn) { pm.test(name, function () { try { fn(); } catch (e) { ok = false; throw e; } }); }",
+                  "function cents(v) { const s=String(v); pm.expect(s).to.match(/^\\d+(\\.\\d{1,2})?$/); const p=s.split('.'); return Number(p[0])*100+Number((p[1]||'').padEnd(2,'0')); }",
+                  "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
+                  "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
+                  "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "check(\"Sin movimiento en el ledger\",()=>{const j=pm.response.json();const rows=Array.isArray(j)?j:j.data;pm.expect(rows).to.be.an(\"array\");pm.expect(rows.filter(t=>t.idempotency_key===pm.environment.get(\"retiro_rechazado_idempotency\"))).to.have.lengthOf(0);});",
+                  "finish();",
+                  "pm.execution.setNextRequest(null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions?cuenta={{numero_cuenta}}"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

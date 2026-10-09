@@ -1,49 +1,40 @@
-# Conexión de los nodos con Supabase (Actualizado)
+# Conexión de los nodos con Supabase y Render
 
-## Estado actual
+El Nodo 1 usa Laravel 13 y PostgreSQL en Supabase (organización EXAMEN, proyecto Banco Central, referencia `rtfdnrwcjwovpplmfthc`). Las tablas bancarias mantienen RLS y el ledger rechaza actualización, borrado y truncado.
 
-El **Nodo 1 (Banco Central)** ya está completamente implementado y su API está lista para recibir peticiones.
-Las tablas `bank_admins`, `bank_nodes`, `users_accounts` y `transactions` están aseguradas mediante RLS.
+Render es el destino acordado por el profesor. Vercel y Coolify son opcionales. La publicación del Banco Central está en verificación; se sustituirá la URL pendiente por la dirección real de Render.
 
-## Cómo debe conectarse cada nodo (Nodo 2 y Nodo 3)
+## Nodo 1
 
-**Nodo 2 (Sucursal) y Nodo 3 (Cajero)** no deben conectarse a Supabase directamente para manipular saldos. Deben hacer peticiones HTTP a la API REST de Laravel del Nodo 1.
+Solo el backend central recibe la contraseña de PostgreSQL y las claves de Supabase. Conecta por el pooler de sesión del proyecto, puerto 5432, con SSL obligatorio. Los archivos privados `.env.supabase.local`, `.env.render.local` y `.env.admin.local` se excluyen de Git y del contenedor.
 
-### Credenciales necesarias en Nodo 2 y Nodo 3
+## Nodos 2 y 3
 
-Deberán configurar estas variables en sus respectivos archivos `.env`:
+Configurar en su servidor, con una clave diferente para cada nodo:
 
 ```dotenv
-# URL de la API de Laravel (Sustituir por la de Render cuando termine el despliegue)
-BANCO_CENTRAL_URL=https://banco-central-nodo1.onrender.com
-
-# Clave exclusiva generada por el administrador en el panel del Nodo 1
-BANCO_CENTRAL_API_KEY=tu_api_key_aqui
+BANCO_CENTRAL_URL=<URL_REAL_DEL_NODO_1>/api
+BANCO_CENTRAL_API_KEY=<CLAVE_PROPIA_GENERADA_EN_EL_PANEL>
 ```
 
-### Cabeceras HTTP Requeridas
+La ruta base incluye `/api` si el cliente añade después `/accounts` o `/transactions`. Revisar el cliente para evitar duplicarla. No utilizar la URL `*.supabase.co` como API del banco.
 
-Todas las peticiones a la API del Nodo 1 deben llevar las siguientes cabeceras:
+Enviar `X-API-KEY`, `Accept: application/json` y `Content-Type: application/json`. Las claves no se incluyen en código del navegador ni en colecciones exportadas.
 
-```http
-X-API-KEY: <tu_api_key_aqui>
-Content-Type: application/json
-Accept: application/json
-```
+| Operación central | Ruta relativa a la base `/api` | Campos principales |
+|---|---|---|
+| Abrir cuenta, solo sucursal | `POST /accounts` | `numero_cuenta`, `nombre_titular`, `saldo_inicial`, `idempotency_key` |
+| Consultar cuenta | `GET /accounts/{numero_cuenta}` | Respuesta: `numero_cuenta`, `nombre_titular`, `saldo_global`, `estado` |
+| Operación monetaria | `POST /transactions` | `tipo`, `monto`, `idempotency_key`; `cuenta_origen` para retiro, `cuenta_destino` para depósito, ambas para transferencia |
+| Historial | `GET /transactions?cuenta=...` | Respuesta paginada: movimientos en `data` |
 
-## Guía Operativa para Compañeros de Equipo
+La apertura registra el saldo inicial positivo como `deposito`, conforme al esquema existente. Cada movimiento conserva `nodo_id`. El retiro devuelve 201 la primera vez y 200 si se reintenta con la misma clave y los mismos datos; reutilizar la clave con otros datos o desde otro nodo devuelve 409. Conservar la clave en todo reintento y crear otra para una operación nueva.
 
-1. **Obtener su API Key**: 
-   El administrador del Nodo 1 debe entrar al panel web (por ejemplo, `https://banco-central-nodo1.onrender.com/admin/login`), registrar la sucursal o cajero, y copiar la clave secreta que aparecerá por pantalla **solo una vez**. Debe entregar esta clave de forma segura al Nodo 2 y 3.
-   
-2. **Consultar el Contrato API**:
-   Revisar el archivo `openapi.yaml` (o `postman_collection.json`) dentro de la carpeta `NODE1` para ver exactamente la estructura del JSON que deben enviar. 
-   **Importante:** Todas las peticiones `POST` de creación de cuenta o transacciones exigen un campo `idempotency_key` (un UUID único por cada operación) para evitar cobros dobles si el cajero pierde el internet.
+## Antes de la prueba conjunta
 
-3. **Flujo de Prueba Obligatorio**:
-   Se debe probar conjuntamente el flujo: 
-   - El Nodo 2 abre la cuenta con **$1,000**.
-   - El Nodo 3 hace un retiro de **$300**.
-   - El Nodo 1 procesa y deja el saldo en **$700**.
-   
-   *Nota para el Cajero (Nodo 3):* Recuerda verificar y descontar tu efectivo físico local independientemente del saldo lógico en la cuenta.
+- El administrador crea sucursal y cajero, entrega sus claves y asigna efectivo.
+- El Nodo 2 debe adaptar su cliente al contrato anterior: actualmente su implementación usa `/cuentas` y campos diferentes. El estado de conexión también depende de su endpoint de metadatos; coordinarlo con el Banco Central.
+- El Nodo 3 verifica su efectivo local antes de solicitar un retiro al Core y lo descuenta una sola vez tras la confirmación. Debe conservar el resultado y la clave de idempotencia para reintentos. Su implementación y sus rutas todavía no están en esta carpeta.
+- No ejecutar nuevamente `supabase/001_schema.sql` ni usar `migrate:fresh` en Supabase. Los cambios se realizan con migraciones incrementales coordinadas.
+
+La colección conjunta está en `INTEGRACION/postman/` y su guía en `INTEGRACION/README.md`, desde la carpeta EXAMEN. El flujo es apertura de $1,000, retiro de $300, saldo $700, efectivo local correcto y un solo movimiento en el historial. Su ejecución completa queda pendiente hasta terminar los tres nodos.
