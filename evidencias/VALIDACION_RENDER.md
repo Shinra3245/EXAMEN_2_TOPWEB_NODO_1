@@ -53,3 +53,5 @@ Revisión posterior del 9 de octubre de 2026, sobre la versión funcional `616b4
 La colección exportable contiene 30 solicitudes. Las carpetas conjuntas 02 y 03 siguen pendientes de las implementaciones reales de los nodos 2 y 3.
 
 La integración de GitHub incluye el repositorio del Nodo 1. El servicio usa Git Provider, rama `main`, runtime Docker y Auto-Deploy **On Commit**; `render.yaml` declara `autoDeployTrigger: commit`.
+
+Un push del commit `a482033` activó el despliegue `dep-db4mj88u01pc739o8tf0`, con indicador **Auto-Deploy**. Finalizó con **Deploy succeeded | Live**, duración 1m09s. No se pulsó Manual Deploy para esa versión. [Captura real](render_autodeploy_live.png).
