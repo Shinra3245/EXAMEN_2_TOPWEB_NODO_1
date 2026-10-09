@@ -20,6 +20,7 @@
             </div>
             <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">Filtrar</button>
             <a href="{{ route('admin.transactions') }}" class="bg-gray-400 text-white font-bold py-2 px-4 rounded hover:bg-gray-500">Limpiar</a>
+            <button type="submit" name="export" value="csv" class="bg-green-600 text-white font-bold py-2 px-4 rounded hover:bg-green-700">Exportar CSV</button>
         </form>
     </div>
 

@@ -10,5 +10,5 @@ Route::middleware(['node.auth'])->group(function () {
     Route::get('/accounts/{numero_cuenta}', [AccountController::class, 'show']);
     
     Route::post('/transactions', [TransactionController::class, 'store']);
-    // History endpoint to be added later
+    Route::get('/transactions', [TransactionController::class, 'index']);
 });

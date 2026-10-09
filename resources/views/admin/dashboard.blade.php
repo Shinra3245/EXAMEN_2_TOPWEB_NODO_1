@@ -35,6 +35,7 @@
                     <th class="border-b p-2">Nombre</th>
                     <th class="border-b p-2">Tipo</th>
                     <th class="border-b p-2">Responsable</th>
+                    <th class="border-b p-2">Efectivo Asignado</th>
                     <th class="border-b p-2">Estado</th>
                     <th class="border-b p-2">Acciones</th>
                 </tr>
@@ -45,6 +46,13 @@
                     <td class="border-b p-2">{{ $node->nombre }}</td>
                     <td class="border-b p-2">{{ ucfirst($node->tipo) }}</td>
                     <td class="border-b p-2">{{ $node->responsable }}</td>
+                    <td class="border-b p-2">
+                        <form action="{{ route('admin.nodes.cash', $node->id) }}" method="POST" class="flex gap-2 items-center">
+                            @csrf
+                            $<input type="number" step="0.01" name="efectivo_asignado" value="{{ $node->efectivo_asignado }}" class="border p-1 rounded w-24">
+                            <button class="bg-blue-600 text-white px-2 py-1 rounded text-sm hover:bg-blue-700">Guardar</button>
+                        </form>
+                    </td>
                     <td class="border-b p-2">
                         @if($node->activo)
                             <span class="text-green-600 font-bold">Activo</span>

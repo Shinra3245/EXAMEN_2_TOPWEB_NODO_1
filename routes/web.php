@@ -19,6 +19,7 @@ Route::middleware(['admin.auth'])->group(function () {
     Route::post('/admin/nodes', [AdminNodeController::class, 'createNode'])->name('admin.nodes.store');
     Route::post('/admin/nodes/{id}/disable', [AdminNodeController::class, 'disableNode'])->name('admin.nodes.disable');
     Route::post('/admin/nodes/{id}/rotate', [AdminNodeController::class, 'rotateKey'])->name('admin.nodes.rotate');
+    Route::post('/admin/nodes/{id}/cash', [AdminNodeController::class, 'updateCash'])->name('admin.nodes.cash');
     
     Route::get('/admin/transactions', [AdminNodeController::class, 'transactions'])->name('admin.transactions');
 });

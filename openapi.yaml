@@ -97,6 +97,22 @@ paths:
           description: Fondos insuficientes, cuenta inactiva o error de validación.
         '422':
           description: Errores de validación.
+    
+    get:
+      summary: Consultar historial de transacciones
+      description: Permite a un nodo autorizado consultar el historial de operaciones, filtrable por cuenta.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: cuenta
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filtrar transacciones por número de cuenta (origen o destino).
+      responses:
+        '200':
+          description: Lista paginada de transacciones.
 
 components:
   securitySchemes:

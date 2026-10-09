@@ -12,6 +12,27 @@ use Illuminate\Support\Facades\Validator;
 class TransactionController extends Controller
 {
     /**
+     * Consultar historial de transacciones del nodo.
+     */
+    public function index(Request $request)
+    {
+        // Un nodo solo debería ver las transacciones donde sea origen o destino de las cuentas que maneja, 
+        // o si es un requerimiento global del nodo, filtramos por las transacciones que ha hecho.
+        // Asignaremos la consulta básica de historial.
+        $query = Transaction::query();
+        
+        if ($request->filled('cuenta')) {
+            $query->where(function($q) use ($request) {
+                $q->where('cuenta_origen', $request->cuenta)
+                  ->orWhere('cuenta_destino', $request->cuenta);
+            });
+        }
+        
+        $transactions = $query->orderBy('created_at', 'desc')->paginate(50);
+        return response()->json($transactions);
+    }
+
+    /**
      * Realizar depósitos, retiros y transferencias.
      */
     public function store(Request $request)
