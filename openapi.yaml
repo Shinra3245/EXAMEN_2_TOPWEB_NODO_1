@@ -1,18 +1,23 @@
 openapi: 3.0.0
 info:
   title: API Banco Central - Sistema Bancario Distribuido
-  description: Endpoints del núcleo del Banco Central para la comunicación con Sucursales y Cajeros (ATMs).
-  version: 1.0.0
+  description: Endpoints del núcleo del Banco Central para la comunicación con Sucursales
+    y Cajeros (ATMs).
+  version: 1.0.1
 servers:
-  - url: http://localhost:8000/api
-    description: Servidor de desarrollo local
+- url: https://banco-central-nodo1.onrender.com/api
+  description: Nodo 1 desplegado y validado en Render
+- url: http://localhost:8000/api
+  description: Servidor de desarrollo local
 paths:
   /accounts:
     post:
       summary: Crear nueva cuenta de usuario
-      description: Permite a una sucursal registrar a un nuevo cliente en el Banco Central. Registra el saldo inicial como un movimiento trazable.
+      description: Solo una sucursal registra cuentas. Un saldo inicial positivo se
+        registra como deposito con nodo_id y sucursal_id; los importes admiten hasta
+        dos decimales.
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -20,10 +25,10 @@ paths:
             schema:
               type: object
               required:
-                - numero_cuenta
-                - nombre_titular
-                - saldo_inicial
-                - idempotency_key
+              - numero_cuenta
+              - nombre_titular
+              - saldo_inicial
+              - idempotency_key
               properties:
                 numero_cuenta:
                   type: string
@@ -41,30 +46,36 @@ paths:
           description: Errores de validación (e.g. número de cuenta duplicado).
         '500':
           description: Error al crear la cuenta.
-  
+        '403':
+          description: El nodo autenticado no es una sucursal.
+        '401':
+          description: API Key ausente, inválida o de nodo inactivo.
   /accounts/{numero_cuenta}:
     get:
       summary: Consultar saldo y detalles de la cuenta
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - name: numero_cuenta
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: numero_cuenta
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Detalles de la cuenta.
         '404':
           description: Cuenta no encontrada.
-
+        '401':
+          description: API Key ausente, inválida o de nodo inactivo.
   /transactions:
     post:
       summary: Registrar transacción (Retiro/Depósito/Transferencia)
-      description: Endpoint utilizado por ATMs y Sucursales para afectar el saldo de un cliente. Implementa atomicidad e idempotencia.
+      description: Operaciones atómicas con bloqueo de cuentas y serialización por
+        idempotency_key. Un reintento conserva nodo, tipo, cuentas y monto; la misma
+        operación retorna la transacción existente sin repetir cambios.
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -72,13 +83,16 @@ paths:
             schema:
               type: object
               required:
-                - tipo
-                - monto
-                - idempotency_key
+              - tipo
+              - monto
+              - idempotency_key
               properties:
                 tipo:
                   type: string
-                  enum: [retiro, deposito, transferencia]
+                  enum:
+                  - retiro
+                  - deposito
+                  - transferencia
                 monto:
                   type: number
                   minimum: 0.01
@@ -94,26 +108,32 @@ paths:
         '200':
           description: Transacción procesada previamente (Idempotencia).
         '400':
-          description: Fondos insuficientes, cuenta inactiva o error de validación.
+          description: Fondos insuficientes o cuenta no encontrada/inactiva.
         '422':
           description: Errores de validación.
-    
+        '409':
+          description: La clave de idempotencia ya pertenece a una operación con otros
+            datos o a otro nodo.
+        '401':
+          description: API Key ausente, inválida o de nodo inactivo.
     get:
       summary: Consultar historial de transacciones
-      description: Permite a un nodo autorizado consultar el historial de operaciones, filtrable por cuenta.
+      description: Permite a un nodo autorizado consultar el historial de operaciones,
+        filtrable por cuenta.
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - name: cuenta
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Filtrar transacciones por número de cuenta (origen o destino).
+      - name: cuenta
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filtrar transacciones por número de cuenta (origen o destino).
       responses:
         '200':
           description: Lista paginada de transacciones.
-
+        '401':
+          description: API Key ausente, inválida o de nodo inactivo.
 components:
   securitySchemes:
     ApiKeyAuth:

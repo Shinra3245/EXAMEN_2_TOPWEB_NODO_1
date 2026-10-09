@@ -90,3 +90,5 @@ El flujo típico de un Nodo (Sucursal/Cajero) es:
 Render es el destino acordado con el profesor. Vercel y Coolify son opcionales. El servicio usa Docker, PHP 8.5, el pooler de sesión de Supabase y variables privadas de Render. Consulte [DESPLIEGUE_RENDER.md](DESPLIEGUE_RENDER.md) para configuración, migraciones, validación y actualización.
 
 La colección conjunta se entrega en `postman_integracion_collection.json`, con el entorno `postman_integracion_environment.json` y las instrucciones en [FLUJO_POSTMAN.md](FLUJO_POSTMAN.md). La integración completa se ejecutará cuando los nodos 2 y 3 terminen.
+
+Publicado y verificado: [Banco Central](https://banco-central-nodo1.onrender.com) · [Panel administrativo](https://banco-central-nodo1.onrender.com/admin/login). Se ejecutaron 14 pruebas PostgreSQL aisladas y 22 aserciones Postman sobre Render, sin fallos. Evidencia: [VALIDACION_RENDER.md](evidencias/VALIDACION_RENDER.md).

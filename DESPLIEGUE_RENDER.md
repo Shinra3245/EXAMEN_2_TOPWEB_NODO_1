@@ -31,6 +31,16 @@ La migración inicial reconoce las cuatro tablas ya existentes sin repetir `001_
 
 Comprobar `/up`, `/admin/login`, el rechazo 401 de la API sin clave, acceso administrativo, creación de nodos y asignación de efectivo. Las pruebas de cuentas, retiros, transferencias, reintentos y protección del ledger se ejecutan en PostgreSQL aislado.
 
-La colección conjunta y sus instrucciones se encuentran en `../INTEGRACION/`. La integración con los otros nodos se ejecuta al finalizar sus implementaciones.
+La colección conjunta está en `postman_integracion_collection.json` y su guía en `FLUJO_POSTMAN.md`; desde EXAMEN también están en `INTEGRACION/`. La integración con los otros nodos se ejecuta al finalizar sus implementaciones.
 
 Render Free puede suspender el servicio tras inactividad y usa disco efímero; las cookies evitan depender del disco para las sesiones del panel y Supabase conserva los datos bancarios. Abrir y verificar el servicio antes de la demostración. [Condiciones del plan gratuito](https://render.com/docs/free).
+
+## Servicio publicado y validado
+
+- URL pública: https://banco-central-nodo1.onrender.com
+- Panel: https://banco-central-nodo1.onrender.com/admin/login
+- Servicio: `srv-db4kj3s9v7es73a6vpr0`; Blueprint: `exs-db4kd68m7kps73c5vuo0`.
+- Versión desplegada: `f51583f`. La construcción en Render terminó con estado Live.
+- Administrador: `22030591@itcelaya.edu.mx`; contraseña en `.env.admin.local`.
+- Nodos de demostración: sucursal con $1,000 asignados y cajero con $1,500 asignados; claves en `.env.nodos.local`. Ese efectivo central es una asignación y no sustituye el inventario local del ATM.
+- Validación: 14 pruebas PostgreSQL y 22 aserciones Postman sobre Render aprobadas. Detalle en `evidencias/VALIDACION_RENDER.md`.

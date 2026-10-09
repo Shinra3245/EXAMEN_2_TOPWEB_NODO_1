@@ -51,7 +51,7 @@
                   "function field(v,path) { return path.split('.').reduce((o,k) => o == null ? undefined : o[k],v); }",
                   "function finish() { if (!ok) pm.execution.setNextRequest(null); }",
                   "check(\"Estado HTTP esperado\",()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
-                  "check(\"Servidor saludable\",()=>pm.expect(pm.response.text()).to.include(\"Application up\"));",
+                  "check(\"Servidor saludable\",()=>pm.expect(pm.response.json().status).to.eql(\"up\"));",
                   "finish();"
                 ]
               }

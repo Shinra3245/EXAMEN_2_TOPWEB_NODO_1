@@ -2,7 +2,7 @@
 
 El Nodo 1 usa Laravel 13 y PostgreSQL en Supabase (organización EXAMEN, proyecto Banco Central, referencia `rtfdnrwcjwovpplmfthc`). Las tablas bancarias mantienen RLS y el ledger rechaza actualización, borrado y truncado.
 
-Render es el destino acordado por el profesor. Vercel y Coolify son opcionales. La publicación del Banco Central está en verificación; se sustituirá la URL pendiente por la dirección real de Render.
+Render es el destino acordado por el profesor. Vercel y Coolify son opcionales. El Banco Central está publicado y validado en https://banco-central-nodo1.onrender.com. Panel: https://banco-central-nodo1.onrender.com/admin/login.
 
 ## Nodo 1
 
@@ -13,7 +13,7 @@ Solo el backend central recibe la contraseña de PostgreSQL y las claves de Supa
 Configurar en su servidor, con una clave diferente para cada nodo:
 
 ```dotenv
-BANCO_CENTRAL_URL=<URL_REAL_DEL_NODO_1>/api
+BANCO_CENTRAL_URL=https://banco-central-nodo1.onrender.com/api
 BANCO_CENTRAL_API_KEY=<CLAVE_PROPIA_GENERADA_EN_EL_PANEL>
 ```
 
@@ -38,3 +38,5 @@ La apertura registra el saldo inicial positivo como `deposito`, conforme al esqu
 - No ejecutar nuevamente `supabase/001_schema.sql` ni usar `migrate:fresh` en Supabase. Los cambios se realizan con migraciones incrementales coordinadas.
 
 La colección conjunta está en `INTEGRACION/postman/` y su guía en `INTEGRACION/README.md`, desde la carpeta EXAMEN. El flujo es apertura de $1,000, retiro de $300, saldo $700, efectivo local correcto y un solo movimiento en el historial. Su ejecución completa queda pendiente hasta terminar los tres nodos.
+
+Las claves de los nodos de demostración están en el archivo privado `NODE1/.env.nodos.local` (desde EXAMEN). Cada agente usa exclusivamente la clave que corresponde a su nodo. No publicarlas ni compartir las credenciales privadas de Supabase.

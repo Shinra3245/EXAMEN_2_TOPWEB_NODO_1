@@ -4,7 +4,7 @@
   "values": [
     {
       "key": "central_url",
-      "value": "",
+      "value": "https://banco-central-nodo1.onrender.com",
       "type": "default",
       "enabled": true
     },
