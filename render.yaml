@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: banco-central-nodo1
+    env: docker
+    region: ohio
+    plan: free
+    healthCheckPath: /up
+    envVars:
+      - key: APP_NAME
+        value: "BancoCentral"
+      - key: APP_ENV
+        value: "production"
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        generateValue: true
+      - key: APP_URL
+        value: "https://banco-central-nodo1.onrender.com"
+      - key: DB_CONNECTION
+        value: "pgsql"
+      - key: DB_HOST
+        value: "aws-0-us-east-1.pooler.supabase.com"
+      - key: DB_PORT
+        value: "6543"
+      - key: DB_DATABASE
+        value: "postgres"
+      - key: DB_USERNAME
+        sync: false # Debes llenar esto en el dashboard de Render
+      - key: DB_PASSWORD
+        sync: false # Debes llenar esto en el dashboard de Render
+      - key: SUPABASE_URL
+        sync: false # Llenar en Render
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false # Llenar en Render
+      - key: SUPABASE_SECRET_KEY
+        sync: false # Llenar en Render
