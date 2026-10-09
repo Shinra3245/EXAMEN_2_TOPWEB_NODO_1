@@ -1,10 +1,13 @@
 services:
   - type: web
     name: banco-central-nodo1
-    env: docker
-    region: ohio
+    runtime: docker
+    region: virginia
     plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /up
+    autoDeployTrigger: off
     envVars:
       - key: APP_NAME
         value: "BancoCentral"
@@ -13,24 +16,36 @@ services:
       - key: APP_DEBUG
         value: "false"
       - key: APP_KEY
-        generateValue: true
-      - key: APP_URL
-        value: "https://banco-central-nodo1.onrender.com"
+        sync: false
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: warning
+      - key: SESSION_DRIVER
+        value: cookie
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: CACHE_STORE
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
       - key: DB_CONNECTION
         value: "pgsql"
       - key: DB_HOST
         value: "aws-0-us-east-1.pooler.supabase.com"
       - key: DB_PORT
-        value: "6543"
+        value: "5432"
       - key: DB_DATABASE
         value: "postgres"
       - key: DB_USERNAME
-        sync: false # Debes llenar esto en el dashboard de Render
+        value: postgres.rtfdnrwcjwovpplmfthc
+      - key: DB_SSLMODE
+        value: require
       - key: DB_PASSWORD
-        sync: false # Debes llenar esto en el dashboard de Render
+        sync: false
       - key: SUPABASE_URL
-        sync: false # Llenar en Render
+        value: https://rtfdnrwcjwovpplmfthc.supabase.co
       - key: SUPABASE_PUBLISHABLE_KEY
-        sync: false # Llenar en Render
+        sync: false
       - key: SUPABASE_SECRET_KEY
-        sync: false # Llenar en Render
+        sync: false

@@ -4,9 +4,9 @@ Este repositorio contiene la implementación del Nodo 1 (Banco Central) del Sist
 
 ## Arquitectura
 
-El Nodo 1 es una API construida con **Laravel 11** que se conecta a una base de datos central en **Supabase** (PostgreSQL). Utiliza **Supabase Auth** para la autenticación del panel de administradores. 
+El Nodo 1 es una API construida con **Laravel 13** que se conecta a una base de datos central en **Supabase** (PostgreSQL). Utiliza **Supabase Auth** para la autenticación del panel de administradores. 
 
-- **Framework**: Laravel 11
+- **Framework**: Laravel 13
 - **Base de Datos**: PostgreSQL en Supabase, con seguridad RLS a nivel de tablas.
 - **Autenticación**: Supabase Auth para usuarios administradores; API Keys hasheadas con SHA-256 para nodos sucursales y cajeros.
 - **Operaciones Atómicas**: Se usa `DB::transaction()` con bloqueo pesimista (`lockForUpdate`) para garantizar la consistencia en depósitos y retiros.
@@ -29,7 +29,8 @@ Añade tus variables secretas (deberás tener las credenciales de Supabase). El 
 ```env
 DB_CONNECTION=pgsql
 DB_HOST=aws-0-us-east-1.pooler.supabase.com
-DB_PORT=6543
+DB_PORT=5432
+DB_SSLMODE=require
 DB_DATABASE=postgres
 DB_USERNAME=postgres.tu-proyecto
 DB_PASSWORD=TU_CONTRASEÑA
@@ -60,7 +61,7 @@ php artisan serve
 
 ## Pruebas (Test Driven)
 
-Las pruebas están configuradas para ejecutarse contra la base de datos PostgreSQL local en Sail (Docker), asegurando que NUNCA se ejecuten truncados sobre la base compartida en Supabase.
+Las pruebas deben ejecutarse contra PostgreSQL aislado en Docker. No utilizar las credenciales de Supabase para las pruebas: contienen operaciones de recreación de tablas.
 
 Para ejecutar las pruebas localmente:
 ```bash
@@ -69,7 +70,7 @@ Para ejecutar las pruebas localmente:
 # Ejecutar pruebas
 ./vendor/bin/sail artisan test
 ```
-Las pruebas validan la concurrencia, idempotencia, fondos insuficientes y rechazo a peticiones no autorizadas.
+Se verifican cuentas, idempotencia, fondos insuficientes, transferencias, ledger inmutable y compatibilidad del panel con el esquema real. La prueba HTTP de concurrencia requiere un servidor aislado que comparta exclusivamente la base de pruebas.
 
 ---
 
@@ -89,4 +90,6 @@ El flujo típico de un Nodo (Sucursal/Cajero) es:
 
 ## Despliegue
 
-La configuración soporta despliegue en Vercel, Render o Coolify. Falta añadir las credenciales y ejecutar los despliegues automatizados en caso de contar con una plataforma preasignada. Se configuró correctamente en la rama principal.
+Render es el destino acordado con el profesor. Vercel y Coolify son opcionales. El servicio usa Docker, PHP 8.5, el pooler de sesión de Supabase y variables privadas de Render. Consulte [DESPLIEGUE_RENDER.md](DESPLIEGUE_RENDER.md) para configuración, migraciones, validación y actualización.
+
+La colección conjunta de los tres nodos se encuentra en `../INTEGRACION/postman/`; las instrucciones están en `../INTEGRACION/README.md`. La integración completa se ejecutará cuando los nodos 2 y 3 terminen.

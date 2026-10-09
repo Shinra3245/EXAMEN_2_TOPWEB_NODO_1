@@ -102,7 +102,7 @@ En Supabase realiza una demostración controlada con entidades de prueba clarame
 - Incluye `.env.example`, OpenAPI, Postman, scripts útiles y un resumen de pruebas con comandos ejecutados, resultados y limitaciones reales.
 - Prepara Docker y una configuración de despliegue adecuada para Laravel, incluyendo HTTPS, secretos, logs sin credenciales y migraciones incrementales.
 - Prepara CI vinculada al repositorio: pruebas, validación del contrato y build. Ejecuta los controles aplicables, incluidos `composer validate`, `composer audit` y build/auditoría NPM si usas dependencias JavaScript. Revisa compatibilidad antes de corregir dependencias.
-- El equipo debe demostrar Vercel y Coolify; Render también figura en el material. El destino concreto del Nodo 1 sigue sin asignarse. Si existe un destino y acceso autorizado, realiza y verifica el despliegue continuo. Si faltan, deja la configuración lista y explica exactamente qué dato o acceso falta, sin inventar un enlace ni declarar un despliegue realizado.
+- Render es el destino acordado por aclaración del profesor; Vercel y Coolify son opcionales. El Nodo 1 se despliega en Render con Docker. Si existe un destino y acceso autorizado, realiza y verifica el despliegue continuo. Si faltan, deja la configuración lista y explica exactamente qué dato o acceso falta, sin inventar un enlace ni declarar un despliegue realizado.
 - Preserva el repositorio del Nodo 1 y sus cambios existentes. No mezcles modificaciones de otros agentes ni alteres repositorios o despliegues ajenos.
 
 ## 6. Criterio de entrega

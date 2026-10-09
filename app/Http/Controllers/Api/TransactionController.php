@@ -3,160 +3,98 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\UserAccount;
 use App\Models\Transaction;
+use App\Models\UserAccount;
+use DomainException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 
 class TransactionController extends Controller
 {
-    /**
-     * Consultar historial de transacciones del nodo.
-     */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        // Un nodo solo debería ver las transacciones donde sea origen o destino de las cuentas que maneja, 
-        // o si es un requerimiento global del nodo, filtramos por las transacciones que ha hecho.
-        // Asignaremos la consulta básica de historial.
         $query = Transaction::query();
-        
         if ($request->filled('cuenta')) {
-            $query->where(function($q) use ($request) {
-                $q->where('cuenta_origen', $request->cuenta)
-                  ->orWhere('cuenta_destino', $request->cuenta);
+            $query->where(function ($query) use ($request): void {
+                $query->where('cuenta_origen', $request->cuenta)
+                    ->orWhere('cuenta_destino', $request->cuenta);
             });
         }
-        
-        $transactions = $query->orderBy('created_at', 'desc')->paginate(50);
-        return response()->json($transactions);
+
+        return response()->json($query->orderBy('created_at', 'desc')->paginate(50));
     }
 
-    /**
-     * Realizar depósitos, retiros y transferencias.
-     */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
+        $data = $request->validate([
             'tipo' => 'required|in:deposito,retiro,transferencia',
-            'monto' => 'required|numeric|min:0.01',
+            'monto' => 'required|numeric|min:0.01|max:9999999999999.99|decimal:0,2',
             'idempotency_key' => 'required|string|max:255',
-            'cuenta_origen' => 'required_if:tipo,retiro,transferencia|string|nullable',
-            'cuenta_destino' => 'required_if:tipo,deposito,transferencia|string|nullable|different:cuenta_origen',
+            'cuenta_origen' => 'required_if:tipo,retiro,transferencia|prohibited_if:tipo,deposito|string|nullable',
+            'cuenta_destino' => 'required_if:tipo,deposito,transferencia|prohibited_if:tipo,retiro|string|nullable|different:cuenta_origen',
         ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        // Check for idempotency
-        $existingTx = Transaction::where('idempotency_key', $request->idempotency_key)->first();
-        if ($existingTx) {
-            // Re-evaluar si la petición es la misma? Para simplificar, devolvemos success
-            return response()->json([
-                'message' => 'Transacción procesada previamente (Idempotente)',
-                'transaction' => $existingTx
-            ], 200);
-        }
+        $node = $request->attributes->get('authenticated_node');
 
         try {
-            $result = DB::transaction(function () use ($request) {
-                $tx = null;
-
-                if ($request->tipo === 'deposito') {
-                    // Bloquear la fila destino
-                    $cuentaDestino = UserAccount::where('numero_cuenta', $request->cuenta_destino)
-                        ->where('estado', 'activa')
-                        ->lockForUpdate()
-                        ->first();
-
-                    if (!$cuentaDestino) {
-                        throw new \Exception("Cuenta destino no encontrada o inactiva.");
+            $result = DB::transaction(function () use ($data, $node): array {
+                DB::select('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [$data['idempotency_key']]);
+                $existing = Transaction::where('idempotency_key', $data['idempotency_key'])->first();
+                if ($existing) {
+                    $sameRequest = $existing->nodo_id === $node->id
+                        && $existing->tipo === $data['tipo']
+                        && $existing->cuenta_origen === ($data['cuenta_origen'] ?? null)
+                        && $existing->cuenta_destino === ($data['cuenta_destino'] ?? null)
+                        && bccomp((string) $existing->monto, (string) $data['monto'], 2) === 0;
+                    if (! $sameRequest) {
+                        throw new DomainException('La clave de idempotencia pertenece a otra operación.', 409);
                     }
 
-                    $cuentaDestino->saldo_global += $request->monto;
-                    $cuentaDestino->save();
-
-                    $tx = Transaction::create([
-                        'cuenta_destino' => $request->cuenta_destino,
-                        'monto' => $request->monto,
-                        'tipo' => 'deposito',
-                        'idempotency_key' => $request->idempotency_key
-                    ]);
-
-                } elseif ($request->tipo === 'retiro') {
-                    $cuentaOrigen = UserAccount::where('numero_cuenta', $request->cuenta_origen)
-                        ->where('estado', 'activa')
-                        ->lockForUpdate()
-                        ->first();
-
-                    if (!$cuentaOrigen) {
-                        throw new \Exception("Cuenta origen no encontrada o inactiva.");
-                    }
-
-                    if ($cuentaOrigen->saldo_global < $request->monto) {
-                        throw new \Exception("Fondos insuficientes.");
-                    }
-
-                    $cuentaOrigen->saldo_global -= $request->monto;
-                    $cuentaOrigen->save();
-
-                    $tx = Transaction::create([
-                        'cuenta_origen' => $request->cuenta_origen,
-                        'monto' => $request->monto,
-                        'tipo' => 'retiro',
-                        'idempotency_key' => $request->idempotency_key
-                    ]);
-
-                } elseif ($request->tipo === 'transferencia') {
-                    // Para evitar deadlocks, bloqueamos siempre en el mismo orden (ej. por id o por string)
-                    $accounts = [$request->cuenta_origen, $request->cuenta_destino];
-                    sort($accounts);
-
-                    $acc1 = UserAccount::where('numero_cuenta', $accounts[0])->lockForUpdate()->first();
-                    $acc2 = UserAccount::where('numero_cuenta', $accounts[1])->lockForUpdate()->first();
-
-                    // Retrieve again in logical order
-                    $cuentaOrigen = $acc1->numero_cuenta === $request->cuenta_origen ? $acc1 : $acc2;
-                    $cuentaDestino = $acc1->numero_cuenta === $request->cuenta_destino ? $acc1 : $acc2;
-
-                    if (!$cuentaOrigen || $cuentaOrigen->estado !== 'activa') {
-                        throw new \Exception("Cuenta origen no encontrada o inactiva.");
-                    }
-                    if (!$cuentaDestino || $cuentaDestino->estado !== 'activa') {
-                        throw new \Exception("Cuenta destino no encontrada o inactiva.");
-                    }
-                    if ($cuentaOrigen->saldo_global < $request->monto) {
-                        throw new \Exception("Fondos insuficientes.");
-                    }
-
-                    $cuentaOrigen->saldo_global -= $request->monto;
-                    $cuentaDestino->saldo_global += $request->monto;
-                    $cuentaOrigen->save();
-                    $cuentaDestino->save();
-
-                    $tx = Transaction::create([
-                        'cuenta_origen' => $request->cuenta_origen,
-                        'cuenta_destino' => $request->cuenta_destino,
-                        'monto' => $request->monto,
-                        'tipo' => 'transferencia',
-                        'idempotency_key' => $request->idempotency_key
-                    ]);
+                    return ['transaction' => $existing, 'repeated' => true];
                 }
 
-                return $tx;
+                $numbers = array_filter([$data['cuenta_origen'] ?? null, $data['cuenta_destino'] ?? null]);
+                $accounts = UserAccount::whereIn('numero_cuenta', $numbers)
+                    ->orderBy('numero_cuenta')->lockForUpdate()->get()->keyBy('numero_cuenta');
+                foreach ($numbers as $number) {
+                    if (! isset($accounts[$number]) || $accounts[$number]->estado !== 'activa') {
+                        throw new DomainException('Cuenta no encontrada o inactiva.', 400);
+                    }
+                }
+
+                $amount = (string) $data['monto'];
+                if (isset($data['cuenta_origen'])) {
+                    $source = $accounts[$data['cuenta_origen']];
+                    if (bccomp((string) $source->saldo_global, $amount, 2) < 0) {
+                        throw new DomainException('Fondos insuficientes.', 400);
+                    }
+                    $source->saldo_global = bcsub((string) $source->saldo_global, $amount, 2);
+                    $source->save();
+                }
+                if (isset($data['cuenta_destino'])) {
+                    $destination = $accounts[$data['cuenta_destino']];
+                    $destination->saldo_global = bcadd((string) $destination->saldo_global, $amount, 2);
+                    $destination->save();
+                }
+
+                $transaction = Transaction::create([
+                    'nodo_id' => $node->id,
+                    'cuenta_origen' => $data['cuenta_origen'] ?? null,
+                    'cuenta_destino' => $data['cuenta_destino'] ?? null,
+                    'monto' => $amount,
+                    'tipo' => $data['tipo'],
+                    'idempotency_key' => $data['idempotency_key'],
+                ]);
+
+                return ['transaction' => $transaction, 'repeated' => false];
             });
 
             return response()->json([
-                'message' => 'Transacción exitosa',
-                'transaction' => $result
-            ], 201);
-            
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error al procesar la transacción',
-                'error' => $e->getMessage()
-            ], 400);
+                'message' => $result['repeated'] ? 'Transacción procesada previamente (Idempotente)' : 'Transacción exitosa',
+                'transaction' => $result['transaction'],
+            ], $result['repeated'] ? 200 : 201);
+        } catch (DomainException $exception) {
+            return response()->json(['message' => $exception->getMessage()], $exception->getCode());
         }
     }
 }

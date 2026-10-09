@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 class AuthController extends Controller
 {
@@ -18,15 +18,15 @@ class AuthController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
-            'password' => 'required'
+            'password' => 'required',
         ]);
 
-        $url = env('SUPABASE_URL') . '/auth/v1/token?grant_type=password';
-        $apiKey = env('SUPABASE_PUBLISHABLE_KEY'); // Should use ANON_KEY for auth requests
+        $url = config('services.supabase.url').'/auth/v1/token?grant_type=password';
+        $apiKey = config('services.supabase.publishable_key');
 
         $response = Http::withHeaders([
             'apiKey' => $apiKey,
-            'Content-Type' => 'application/json'
+            'Content-Type' => 'application/json',
         ])->post($url, [
             'email' => $request->email,
             'password' => $request->password,
@@ -42,17 +42,18 @@ class AuthController extends Controller
         // Verificar autorización (debe estar en bank_admins y activo)
         $admin = DB::table('bank_admins')->where('user_id', $userId)->first();
 
-        if (!$admin || !$admin->activo) {
+        if (! $admin || ! $admin->activo) {
             return back()->withErrors(['email' => 'No tienes autorización administrativa o tu cuenta está inactiva.']);
         }
 
         // Guardar sesión
+        $request->session()->regenerate();
         session([
             'admin_authenticated' => true,
             'supabase_access_token' => $data['access_token'],
             'supabase_refresh_token' => $data['refresh_token'],
             'admin_user_id' => $userId,
-            'admin_role' => $admin->rol,
+            'admin_name' => $admin->nombre,
         ]);
 
         return redirect()->route('admin.dashboard');
@@ -61,16 +62,18 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         // Invalidar en Supabase opcionalmente (con el token)
-        $url = env('SUPABASE_URL') . '/auth/v1/logout';
+        $url = config('services.supabase.url').'/auth/v1/logout';
         $token = session('supabase_access_token');
         if ($token) {
             Http::withHeaders([
-                'apiKey' => env('SUPABASE_PUBLISHABLE_KEY'),
-                'Authorization' => 'Bearer ' . $token,
+                'apiKey' => config('services.supabase.publishable_key'),
+                'Authorization' => 'Bearer '.$token,
             ])->post($url);
         }
 
-        $request->session()->flush();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
         return redirect()->route('admin.login');
     }
 }
