@@ -1,0 +1,129 @@
+{
+	"info": {
+		"_postman_id": "banco-central-api",
+		"name": "API Banco Central",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Apertura de Cuenta",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-KEY",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"numero_cuenta\": \"1234567890\",\n  \"nombre_titular\": \"Usuario Prueba\",\n  \"saldo_inicial\": 1000,\n  \"idempotency_key\": \"idemp-apertura-1\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/accounts",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"accounts"
+					]
+				}
+			}
+		},
+		{
+			"name": "2. Consulta de Saldo",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-API-KEY",
+						"value": "{{api_key}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/accounts/1234567890",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"accounts",
+						"1234567890"
+					]
+				}
+			}
+		},
+		{
+			"name": "3. Retiro (Fondos Suficientes)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-KEY",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"tipo\": \"retiro\",\n  \"cuenta_origen\": \"1234567890\",\n  \"monto\": 300,\n  \"idempotency_key\": \"idemp-retiro-1\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/transactions",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"transactions"
+					]
+				}
+			}
+		},
+		{
+			"name": "4. Retiro (Fondos Insuficientes - Rechazo)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-KEY",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"tipo\": \"retiro\",\n  \"cuenta_origen\": \"1234567890\",\n  \"monto\": 10000,\n  \"idempotency_key\": \"idemp-retiro-2\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/transactions",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"transactions"
+					]
+				}
+			}
+		}
+	]
+}

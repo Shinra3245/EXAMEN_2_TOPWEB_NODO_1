@@ -1,0 +1,106 @@
+openapi: 3.0.0
+info:
+  title: API Banco Central - Sistema Bancario Distribuido
+  description: Endpoints del núcleo del Banco Central para la comunicación con Sucursales y Cajeros (ATMs).
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000/api
+    description: Servidor de desarrollo local
+paths:
+  /accounts:
+    post:
+      summary: Crear nueva cuenta de usuario
+      description: Permite a una sucursal registrar a un nuevo cliente en el Banco Central. Registra el saldo inicial como un movimiento trazable.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - numero_cuenta
+                - nombre_titular
+                - saldo_inicial
+                - idempotency_key
+              properties:
+                numero_cuenta:
+                  type: string
+                nombre_titular:
+                  type: string
+                saldo_inicial:
+                  type: number
+                  minimum: 0
+                idempotency_key:
+                  type: string
+      responses:
+        '201':
+          description: Cuenta creada exitosamente.
+        '422':
+          description: Errores de validación (e.g. número de cuenta duplicado).
+        '500':
+          description: Error al crear la cuenta.
+  
+  /accounts/{numero_cuenta}:
+    get:
+      summary: Consultar saldo y detalles de la cuenta
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: numero_cuenta
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detalles de la cuenta.
+        '404':
+          description: Cuenta no encontrada.
+
+  /transactions:
+    post:
+      summary: Registrar transacción (Retiro/Depósito/Transferencia)
+      description: Endpoint utilizado por ATMs y Sucursales para afectar el saldo de un cliente. Implementa atomicidad e idempotencia.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tipo
+                - monto
+                - idempotency_key
+              properties:
+                tipo:
+                  type: string
+                  enum: [retiro, deposito, transferencia]
+                monto:
+                  type: number
+                  minimum: 0.01
+                cuenta_origen:
+                  type: string
+                cuenta_destino:
+                  type: string
+                idempotency_key:
+                  type: string
+      responses:
+        '201':
+          description: Transacción aprobada y saldo actualizado.
+        '200':
+          description: Transacción procesada previamente (Idempotencia).
+        '400':
+          description: Fondos insuficientes, cuenta inactiva o error de validación.
+        '422':
+          description: Errores de validación.
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
