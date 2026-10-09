@@ -1,48 +1,49 @@
-# Conexión de los nodos con Supabase
+# Conexión de los nodos con Supabase (Actualizado)
 
 ## Estado actual
 
-Supabase está configurado en la organización **EXAMEN**, proyecto **Banco Central**.
+El **Nodo 1 (Banco Central)** ya está completamente implementado y su API está lista para recibir peticiones.
+Las tablas `bank_admins`, `bank_nodes`, `users_accounts` y `transactions` están aseguradas mediante RLS.
 
-- Referencia: `rtfdnrwcjwovpplmfthc`.
-- URL de Supabase: `https://rtfdnrwcjwovpplmfthc.supabase.co`.
-- Tablas: `bank_admins`, `bank_nodes`, `users_accounts` y `transactions`.
-- RLS activo; el acceso directo a las tablas está bloqueado para `anon` y `authenticated`.
-- El historial tiene protección contra edición, borrado y truncado.
+## Cómo debe conectarse cada nodo (Nodo 2 y Nodo 3)
 
-**Pendiente:** implementar Laravel en el Nodo 1, crear los nodos y sus API Keys, y proporcionar la URL de la API bancaria.
+**Nodo 2 (Sucursal) y Nodo 3 (Cajero)** no deben conectarse a Supabase directamente para manipular saldos. Deben hacer peticiones HTTP a la API REST de Laravel del Nodo 1.
 
-## Cómo debe conectarse cada nodo
+### Credenciales necesarias en Nodo 2 y Nodo 3
 
-**Nodo 1 — Banco Central:** conecta Laravel con Supabase. La configuración está en el archivo privado `NODE1/.env.supabase.local`, con las variables `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_DB_PASSWORD`. La clave secreta activa se llama `laravel_core`. Se utiliza exclusivamente en el servidor del Banco Central.
-
-**Nodo 2 — Sucursal y Nodo 3 — Cajero:** sus backends llaman a la API de Laravel del Nodo 1. El Banco Central realiza las operaciones en Supabase. Cada nodo recibirá su propia API Key; las claves secretas de Supabase y la contraseña de PostgreSQL se mantienen en el Nodo 1.
-
-Variables que deberán configurar en el servidor de cada sucursal o cajero:
+Deberán configurar estas variables en sus respectivos archivos `.env`:
 
 ```dotenv
-# URL de la API de Laravel, incluida su ruta base. Pendiente de proporcionar.
-BANCO_CENTRAL_URL=
-# Clave exclusiva de esta sucursal o cajero. Pendiente de generar en el Nodo 1.
-BANCO_CENTRAL_API_KEY=
+# URL de la API de Laravel (Sustituir por la de Render cuando termine el despliegue)
+BANCO_CENTRAL_URL=https://banco-central-nodo1.onrender.com
+
+# Clave exclusiva generada por el administrador en el panel del Nodo 1
+BANCO_CENTRAL_API_KEY=tu_api_key_aqui
 ```
 
-Cabecera prevista en el borrador OpenAPI:
+### Cabeceras HTTP Requeridas
+
+Todas las peticiones a la API del Nodo 1 deben llevar las siguientes cabeceras:
 
 ```http
-X-API-KEY: <clave_exclusiva_del_nodo>
+X-API-KEY: <tu_api_key_aqui>
 Content-Type: application/json
+Accept: application/json
 ```
 
-La URL de Supabase identifica el servicio de datos; `BANCO_CENTRAL_URL` identifica la API bancaria que desarrollará Laravel. La clave publicable de Supabase no permite acceder a las tablas bancarias con los permisos actuales.
+## Guía Operativa para Compañeros de Equipo
 
-## Para los agentes de IA
+1. **Obtener su API Key**: 
+   El administrador del Nodo 1 debe entrar al panel web (por ejemplo, `https://banco-central-nodo1.onrender.com/admin/login`), registrar la sucursal o cajero, y copiar la clave secreta que aparecerá por pantalla **solo una vez**. Debe entregar esta clave de forma segura al Nodo 2 y 3.
+   
+2. **Consultar el Contrato API**:
+   Revisar el archivo `openapi.yaml` (o `postman_collection.json`) dentro de la carpeta `NODE1` para ver exactamente la estructura del JSON que deben enviar. 
+   **Importante:** Todas las peticiones `POST` de creación de cuenta o transacciones exigen un campo `idempotency_key` (un UUID único por cada operación) para evitar cobros dobles si el cajero pierde el internet.
 
-1. Solicitar al agente del Nodo 1 la URL real, la API Key propia y el OpenAPI definitivo. El contrato actual es un borrador; no presentar rutas ni respuestas propuestas como implementadas.
-2. Guardar las variables en el backend y excluir los archivos `.env` de Git. Las API Keys de nodos tampoco se incluyen en el JavaScript del navegador.
-3. La sucursal crea cuentas y consulta historial/reportes mediante el Banco Central. El cajero consulta saldos, deposita y retira mediante el mismo servicio.
-4. El cajero verifica primero su efectivo local y lo descuenta tras la confirmación del retiro central. Coordinar el tratamiento de errores y reintentos con el Nodo 1 para evitar movimientos duplicados.
-5. No volver a ejecutar el SQL de creación sobre las tablas existentes. Los cambios de esquema se coordinan con el Nodo 1.
-
-La prueba conjunta pendiente es: abrir una cuenta con **$1,000**, retirar **$300** y verificar **$700** en el Banco Central.
-
+3. **Flujo de Prueba Obligatorio**:
+   Se debe probar conjuntamente el flujo: 
+   - El Nodo 2 abre la cuenta con **$1,000**.
+   - El Nodo 3 hace un retiro de **$300**.
+   - El Nodo 1 procesa y deja el saldo en **$700**.
+   
+   *Nota para el Cajero (Nodo 3):* Recuerda verificar y descontar tu efectivo físico local independientemente del saldo lógico en la cuenta.
