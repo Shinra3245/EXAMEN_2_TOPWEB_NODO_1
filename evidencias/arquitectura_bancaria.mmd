@@ -1,0 +1,26 @@
+flowchart TB
+  subgraph render["Servicios independientes en Render"]
+    direction LR
+    N2["Nodo 2 · Sucursal<br/>Express.js<br/>Apertura, consultas y reportes"]
+    N1["Nodo 1 · Banco Central<br/>Laravel 13 · PHP 8.5<br/>API Core y panel administrativo"]
+    N3["Nodo 3 · Cajero automático<br/>Express.js<br/>Saldo, retiros y depósitos"]
+    LOCAL[("PostgreSQL del cajero<br/>Inventario, operaciones y sesiones")]
+    N2 -->|"HTTPS + X-API-KEY"| N1
+    N3 -->|"HTTPS + X-API-KEY"| N1
+    N3 -->|"Persistencia local"| LOCAL
+  end
+  subgraph supabase["Supabase · datos centrales y servicios"]
+    DB[("PostgreSQL central · RLS<br/>Cuentas, saldos, nodos y ledger")]
+    AUTH["Supabase Auth<br/>Autenticación de administradores"]
+    RT["Supabase Realtime<br/>Canal privado bank-admin"]
+    DB -->|"Avisos de nuevos movimientos"| RT
+  end
+  N1 -->|"SQL mediante SSL"| DB
+  N1 -->|"Valida la sesión"| AUTH
+  RT -.->|"Notifica al panel autorizado"| N1
+  classDef central fill:#fff1cf,stroke:#b77900,color:#1f2937;
+  classDef service fill:#eaf2ff,stroke:#2f6db5,color:#1f2937;
+  classDef database fill:#e6f5ef,stroke:#0f766e,color:#1f2937;
+  class N1 central;
+  class N2,N3 service;
+  class DB,LOCAL,AUTH,RT database;

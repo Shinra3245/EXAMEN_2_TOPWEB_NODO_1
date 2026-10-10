@@ -1,116 +1,228 @@
-# EXAMEN 2 TOPWEB: NODO 1 (Banco Central)
+# Sistema Bancario Distribuido — Nodo 1: Banco Central
 
-Este repositorio contiene la implementación del Nodo 1 (Banco Central) del Sistema Bancario Distribuido.
+**Examen práctico 2 · Tópicos de Programación Web.** Este repositorio contiene el Banco Central del sistema: una API en Laravel y un panel administrativo que consolidan las cuentas, los saldos y las transacciones en Supabase. La sucursal y el cajero funcionan como servicios independientes y se comunican con el Central mediante HTTPS y una API Key propia.
 
-## Arquitectura
+## Aplicaciones y repositorios
 
-El Nodo 1 es una API construida con **Laravel 13** que se conecta a una base de datos central en **Supabase** (PostgreSQL). Utiliza **Supabase Auth** para la autenticación del panel y **Supabase Realtime** para avisar de nuevos movimientos mediante un canal privado autorizado por RLS.
+Se entrega **un repositorio por cada nodo**. Los tres servicios están desplegados en Render, conforme a la aclaración del profesor; Vercel y Coolify quedaron como opciones adicionales.
 
-- **Framework**: Laravel 13
-- **Base de Datos**: PostgreSQL en Supabase, con seguridad RLS a nivel de tablas.
-- **Autenticación**: Supabase Auth para usuarios administradores; API Keys hasheadas con SHA-256 para nodos sucursales y cajeros.
-- **Operaciones Atómicas**: Se usa `DB::transaction()` con bloqueo pesimista (`lockForUpdate`) para garantizar la consistencia en depósitos y retiros.
-- **Idempotencia**: Las transacciones usan `idempotency_key` para evitar transferencias o retiros duplicados ante problemas de red.
+| Nodo | Repositorio de código | Aplicación desplegada | Contrato OpenAPI |
+| --- | --- | --- | --- |
+| **1 · Banco Central** | [GitHub Nodo 1](https://github.com/Shinra3245/EXAMEN_2_TOPWEB_NODO_1) | [Panel del Central](https://banco-central-nodo1.onrender.com/admin/login) | [openapi.yaml](openapi.yaml) |
+| **2 · Sucursal** | [GitHub Nodo 2](https://github.com/Shinra3245/EXAMEN_2_TOPWEB_NODO_2) | [Sucursal](https://sucursal-nodo2.onrender.com) | [OpenAPI de sucursal](https://github.com/Shinra3245/EXAMEN_2_TOPWEB_NODO_2/blob/main/docs/openapi.yaml) |
+| **3 · Cajero automático** | [GitHub Nodo 3](https://github.com/Shinra3245/EXAMEN_2_TOPWEB_NODO_3/tree/main) | [Cajero](https://node3-atm.onrender.com) | [OpenAPI del cajero](https://github.com/Shinra3245/EXAMEN_2_TOPWEB_NODO_3/blob/main/openapi.json) |
+
+La API del Central tiene como base `https://banco-central-nodo1.onrender.com/api`. El [panel técnico del cajero](https://node3-atm.onrender.com/admin/login) permite configurar su conexión. Los accesos administrativos usan las credenciales privadas proporcionadas al equipo.
+
+## Diagrama de arquitectura
+
+![Arquitectura del sistema bancario: sucursal y cajero consumen la API del Banco Central; Supabase conserva los datos centrales y el cajero tiene persistencia propia.](evidencias/arquitectura_bancaria.png)
+
+La sucursal y el cajero solicitan operaciones al Banco Central. Laravel valida la API Key y confirma los cambios de saldo y el registro de la transacción de forma atómica. Supabase PostgreSQL conserva el saldo global y el historial; el PostgreSQL propio del cajero conserva su efectivo local, sus comprobantes y sus sesiones. Supabase Auth valida a los administradores y Realtime avisa al panel mediante un canal privado.
+
+<details>
+<summary>Ver el diagrama en Mermaid</summary>
 
 ```mermaid
-flowchart LR
-  S["Nodo 2 · Express · Render"] -->|HTTPS + X-API-KEY| C["Nodo 1 · Laravel · Render"]
-  A["Nodo 3 · Express · Render"] -->|HTTPS + X-API-KEY| C
-  C -->|PostgreSQL + SSL| D["Supabase · cuentas, ledger y comprobantes"]
-  C --> U["Supabase Auth"]
-  D --> R["Supabase Realtime · canal privado"]
-  R --> P["Panel administrativo"]
+flowchart TB
+  subgraph render["Servicios independientes en Render"]
+    direction LR
+    N2["Nodo 2 · Sucursal<br/>Express.js<br/>Apertura, consultas y reportes"]
+    N1["Nodo 1 · Banco Central<br/>Laravel 13 · PHP 8.5<br/>API Core y panel administrativo"]
+    N3["Nodo 3 · Cajero automático<br/>Express.js<br/>Saldo, retiros y depósitos"]
+    LOCAL[("PostgreSQL del cajero<br/>Inventario, operaciones y sesiones")]
+    N2 -->|"HTTPS + X-API-KEY"| N1
+    N3 -->|"HTTPS + X-API-KEY"| N1
+    N3 -->|"Persistencia local"| LOCAL
+  end
+  subgraph supabase["Supabase · datos centrales y servicios"]
+    DB[("PostgreSQL central · RLS<br/>Cuentas, saldos, nodos y ledger")]
+    AUTH["Supabase Auth<br/>Autenticación de administradores"]
+    RT["Supabase Realtime<br/>Canal privado bank-admin"]
+    DB -->|"Avisos de nuevos movimientos"| RT
+  end
+  N1 -->|"SQL mediante SSL"| DB
+  N1 -->|"Valida la sesión"| AUTH
+  RT -.->|"Notifica al panel autorizado"| N1
+  classDef central fill:#fff1cf,stroke:#b77900,color:#1f2937;
+  classDef service fill:#eaf2ff,stroke:#2f6db5,color:#1f2937;
+  classDef database fill:#e6f5ef,stroke:#0f766e,color:#1f2937;
+  class N1 central;
+  class N2,N3 service;
+  class DB,LOCAL,AUTH,RT database;
 ```
 
-## Configuración e Instalación
+</details>
 
-### 1. Clonar el repositorio
+[Fuente editable del diagrama](evidencias/arquitectura_bancaria.mmd).
+
+## Módulos y estructura del Nodo 1
+
+```text
+EXAMEN_2_TOPWEB_NODO_1/
+├── app/
+│   ├── Console/Commands/          # Alta inicial de administradores
+│   ├── Http/Controllers/
+│   │   ├── Admin/                # Acceso, nodos, efectivo, reportes y Realtime
+│   │   └── Api/                  # Cuentas, transacciones y comprobantes ATM
+│   ├── Http/Middleware/          # Autenticación administrativa y por API Key
+│   └── Models/                   # BankNode, UserAccount y Transaction
+├── config/                       # Conexión PostgreSQL y servicios de Supabase
+├── database/migrations/          # Esquema y ampliaciones incrementales
+├── supabase/                     # SQL de tablas, restricciones y RLS
+├── resources/views/admin/        # Panel de nodos, acceso e historial global
+├── public/                       # Entrada web y cliente de Realtime
+├── routes/
+│   ├── api.php                   # API protegida para sucursal y cajero
+│   └── web.php                   # Rutas del panel administrativo
+├── tests/Feature/                # Pruebas bancarias, permisos y concurrencia
+├── evidencias/                   # Capturas y resultados de validación
+├── openapi.yaml                  # Contrato de la API del Central
+├── postman_integracion_collection.json
+├── postman_integracion_environment.json
+├── Dockerfile                    # PHP 8.5, Apache y extensiones PostgreSQL
+├── docker-entrypoint.sh          # Cachés, migraciones incrementales y arranque
+├── render.yaml                   # Servicio y despliegue continuo en Render
+├── test-postgres.sh              # Pruebas en PostgreSQL aislado
+└── README.md                     # Documentación principal de entrega
+```
+
+| Módulo | Funcionalidades implementadas |
+| --- | --- |
+| **Administración del banco** | Acceso con Supabase Auth; registro de sucursales y cajeros; responsables, estado, API Keys y efectivo asignado. |
+| **Cuentas** | Apertura desde la sucursal, consulta del saldo global y estado de la cuenta. |
+| **Operaciones bancarias** | Depósitos, retiros y transferencias; validación de fondos, bloqueo de cuentas e idempotencia. |
+| **Integración ATM** | Efectivo central y local coordinados, comprobantes durables y recuperación de operaciones sin duplicarlas. |
+| **Historial y reportes** | Historial global por nodo, cuenta y fechas; exportación CSV; historial local y consulta completa por cuenta autorizada. |
+| **Seguridad y Realtime** | API Keys almacenadas como hashes SHA-256, RLS, ledger inmutable y notificaciones privadas para administradores. |
+
+### Datos centrales
+
+| Tabla | Información que conserva |
+| --- | --- |
+| `bank_admins` | Administradores autorizados vinculados con Supabase Auth. |
+| `bank_nodes` | Sucursales y cajeros, responsables, efectivo, estado y hash de su API Key. |
+| `users_accounts` | Número de cuenta, titular, saldo global, estado y sucursal de apertura. |
+| `transactions` | Movimientos confirmados, nodo que los procesó, cuentas, monto, tipo y fecha. |
+| `atm_operation_results` | Comprobantes y rechazos durables para recuperar intentos del cajero. |
+
+## Imágenes del sistema
+
+Las siguientes capturas corresponden a las aplicaciones reales desplegadas. Los importes muestran el estado de las cuentas y nodos de prueba al momento de la captura.
+
+### Banco Central: gestión de sucursales y cajeros
+
+El panel permite registrar nodos, asignar responsables y efectivo, y administrar sus accesos.
+
+![Panel del Banco Central con sucursal y cajero registrados.](evidencias/banco_central_panel.png)
+
+### Banco Central: historial global y reportes
+
+La consulta filtrada por cuenta reúne los siete movimientos realizados por sucursal y cajero. Incluye el nodo de origen, las fechas, los importes, la exportación CSV y el estado de conexión de Realtime.
+
+![Historial global del Central con movimientos de ambos nodos y Realtime conectado.](evidencias/banco_central_historial.png)
+
+### Sucursal: historial completo de la cuenta
+
+La sucursal distingue su historial local del historial completo de una cuenta. Muestra **$3,000.90** de saldo actual y siete movimientos; la suma de importes se presenta por separado.
+
+![Sucursal mostrando el saldo actual y todos los movimientos de una cuenta, incluidos los del cajero.](evidencias/sucursal_historial_completo.png)
+
+### Cajero: consulta del saldo central
+
+La consulta de la misma cuenta devuelve **$3,000.90**, coincidente con el Banco Central y la sucursal.
+
+![Interfaz del cajero con la consulta de saldo confirmada por el Banco Central.](evidencias/cajero_consulta_saldo.png)
+
+## API y documentación de integración
+
+Las rutas bancarias requieren la cabecera `X-API-KEY`. Las cuentas nuevas solo pueden abrirse desde una sucursal; cada operación conserva su clave de idempotencia al reintentarse.
+
+| Método | Ruta, relativa a `/api` | Función |
+| --- | --- | --- |
+| `GET` | `/nodes/me` | Identidad, estado y efectivo del nodo autenticado. |
+| `POST` | `/accounts` | Apertura de una cuenta desde la sucursal. |
+| `GET` | `/accounts/{numero_cuenta}` | Consulta de cuenta y saldo global. |
+| `POST` | `/transactions` | Depósito, retiro o transferencia. |
+| `GET` | `/transactions` | Historial local del nodo, filtrable por cuenta. |
+| `GET` | `/accounts/{numero_cuenta}/transactions` | Historial completo de la cuenta para la sucursal que la abrió. |
+| `GET` | `/transactions/by-idempotency-key/{key}` | Recuperación del comprobante del cajero autenticado. |
+
+- [Contrato OpenAPI del Central](openapi.yaml).
+- [Conexión de los nodos a Supabase mediante el Central](CONEXION_SUPABASE_NODOS.md).
+- [Contrato específico del cajero](CONTRATO_NODO3.md).
+- [Colección conjunta de Postman](postman_integracion_collection.json), [entorno sin credenciales](postman_integracion_environment.json) y [flujo de validación](FLUJO_POSTMAN.md).
+- [Consultas Postman del historial completo y local](postman_historial_collection.json).
+
+## Instalación del Banco Central
+
+Se utiliza Laravel 13, PHP 8.5, Composer 2 y PostgreSQL de Supabase. PHP necesita las extensiones `pdo_pgsql`, `mbstring` y `bcmath`; el [Dockerfile](Dockerfile) las instala para Render.
+
 ```bash
 git clone https://github.com/Shinra3245/EXAMEN_2_TOPWEB_NODO_1.git
 cd EXAMEN_2_TOPWEB_NODO_1
-```
-
-### 2. Archivo de configuración (.env)
-Copia el archivo de ejemplo:
-```bash
-cp .env.example .env
-```
-Añade tus variables secretas (deberás tener las credenciales de Supabase). El `.env` debe lucir así para producción:
-```env
-DB_CONNECTION=pgsql
-DB_HOST=aws-0-us-east-1.pooler.supabase.com
-DB_PORT=5432
-DB_SSLMODE=require
-DB_DATABASE=postgres
-DB_USERNAME=postgres.tu-proyecto
-DB_PASSWORD=TU_CONTRASEÑA
-
-SUPABASE_URL=https://tu-proyecto.supabase.co
-SUPABASE_SECRET_KEY=sb_secret_tu_clave
-SUPABASE_PUBLISHABLE_KEY=sb_publishable_tu_clave
-```
-
-### 3. Instalar dependencias
-```bash
 composer install
+cp .env.example .env
+php artisan key:generate
 ```
 
-### 4. Crear el administrador inicial
-Ejecuta este comando usando la API de Supabase para registrar el primer administrador:
-```bash
-php artisan admin:create-initial admin@banco.com tu-contraseña-segura
+Configurar `.env` con las credenciales del proyecto Supabase y los siguientes valores:
+
+```dotenv
+APP_NAME=BancoCentral
+APP_ENV=local
+APP_URL=http://localhost:8000
+
+DB_CONNECTION=pgsql
+DB_HOST=HOST_DEL_SESSION_POOLER
+DB_PORT=5432
+DB_DATABASE=postgres
+DB_USERNAME=postgres.REFERENCIA_DEL_PROYECTO
+DB_PASSWORD=CONTRASENA_PRIVADA
+DB_SSLMODE=require
+
+SUPABASE_URL=https://REFERENCIA_DEL_PROYECTO.supabase.co
+SUPABASE_PUBLISHABLE_KEY=CLAVE_PUBLICABLE_DEL_PROYECTO
+SUPABASE_SECRET_KEY=CLAVE_SECRETA_DEL_SERVIDOR
+
+SESSION_DRIVER=cookie
+CACHE_STORE=file
+QUEUE_CONNECTION=sync
 ```
 
-### 5. Arranque
-Para pruebas locales (sin docker):
+Con la conexión configurada, aplicar las migraciones incrementales y arrancar Laravel:
+
 ```bash
+php artisan migrate
 php artisan serve
 ```
 
----
+Para un proyecto nuevo, el comando `php artisan admin:create-initial CORREO CONTRASENA` registra al primer administrador en Supabase Auth y en `bank_admins`. El panel local se abre en `http://localhost:8000/admin/login`.
 
-## Pruebas (Test Driven)
+Los valores reales de `.env`, contraseñas, API Keys y sesiones se conservan fuera de Git. En una base existente se aplican migraciones incrementales; no se ejecuta `migrate:fresh` ni se repite el SQL inicial.
 
-Las pruebas deben ejecutarse contra PostgreSQL aislado en Docker. No utilizar las credenciales de Supabase para las pruebas: contienen operaciones de recreación de tablas.
+## Despliegue y validaciones realizadas
 
-Para ejecutar las pruebas localmente:
+[render.yaml](render.yaml) declara el servicio Docker y el despliegue automático al actualizar `main`. [docker-entrypoint.sh](docker-entrypoint.sh) genera las cachés, aplica migraciones incrementales y arranca Apache. La configuración completa está en [DESPLIEGUE_RENDER.md](DESPLIEGUE_RENDER.md).
+
+| Validación técnica registrada | Resultado |
+| --- | --- |
+| Banco Central con PostgreSQL aislado | **51 pruebas y 318 aserciones aprobadas**, incluidas pruebas HTTP de concurrencia. |
+| Integración de los tres nodos en Render | **46 solicitudes Postman y 49 aserciones aprobadas**, incluida persistencia tras reiniciar el cajero. |
+| Historial completo y local de la cuenta | **13 consultas Postman y 27 aserciones aprobadas**, sin realizar operaciones monetarias. |
+
+Para ejecutar las pruebas del Central en una base aislada:
+
 ```bash
 sh test-postgres.sh
 ```
-Se verifican cuentas, idempotencia, fondos insuficientes, transferencias, ledger inmutable y compatibilidad del panel con el esquema real. La prueba HTTP de concurrencia requiere un servidor aislado que comparta exclusivamente la base de pruebas.
 
----
+Este script utiliza contenedores de prueba y no las credenciales de Supabase. Se verifican permisos, idempotencia, fondos y efectivo insuficientes, transferencias, historial inmutable, paginación y concurrencia.
 
-## Integración y API (Postman / OpenAPI)
+Resultados: [integración conjunta](evidencias/ensayo_entrega_postman.json), [historial por cuenta](evidencias/historial_cuenta_postman.json) y [verificación de Realtime](evidencias/nodo3_realtime_panel.json). El flujo de integración registrado fue apertura de **$1,000**, retiro de **$300** y saldo final de **$700**.
 
-El sistema expone endpoints seguros. Encuentra el contrato en:
-- `openapi.yaml` (Definición completa Swagger/OpenAPI)
-- `postman_collection.json` (Colección lista para importar)
-- `postman_environment.json` (Variables de entorno para Postman)
+## Entregables y demostración
 
-El flujo típico de un Nodo (Sucursal/Cajero) es:
-1. El Administrador Central crea el nodo en el panel (`/admin`).
-2. Se genera una `X-API-KEY` (sólo mostrada 1 vez).
-3. El Nodo envía esta cabecera en peticiones a `/api/accounts` y `/api/transactions`.
+Este repositorio entrega el código del Nodo 1 con sus módulos identificados, el README con el diagrama de arquitectura, las imágenes del sistema, los enlaces a los tres repositorios y aplicaciones, y los contratos OpenAPI. La documentación complementaria está en [ENTREGA_FINAL.md](ENTREGA_FINAL.md).
 
----
-
-## Despliegue
-
-Render es el destino acordado con el profesor. Vercel y Coolify son opcionales. El servicio usa Docker, PHP 8.5, el pooler de sesión de Supabase y variables privadas de Render. Consulte [DESPLIEGUE_RENDER.md](DESPLIEGUE_RENDER.md) para configuración, migraciones, validación y actualización.
-
-La colección conjunta se entrega en `postman_integracion_collection.json`, con el entorno `postman_integracion_environment.json` y las instrucciones en [FLUJO_POSTMAN.md](FLUJO_POSTMAN.md). El Nodo 2 ya está publicado en [Render](https://sucursal-nodo2.onrender.com). El cajero está publicado en https://node3-atm.onrender.com. La prueba real de los tres nodos aprobó 46 solicitudes y 49 aserciones, incluido reinicio del cajero. El contrato del cajero y la colección específica están en [CONTRATO_NODO3.md](CONTRATO_NODO3.md).
-
-Publicado y verificado: [Banco Central](https://banco-central-nodo1.onrender.com) · [Panel administrativo](https://banco-central-nodo1.onrender.com/admin/login). La suite PostgreSQL aislada cuenta con 51 pruebas (318 aserciones), incluidas tres pruebas HTTP de concurrencia real. La validación inicial en Render registró 27 aserciones Postman sin fallos. `GET /api/transactions` conserva el historial local del nodo. `GET /api/accounts/{numero_cuenta}/transactions` devuelve el historial completo de una cuenta exclusivamente a la sucursal que la abrió, con el nombre y tipo del nodo que procesó cada movimiento y sin claves de idempotencia. Evidencia histórica: [VALIDACION_RENDER.md](evidencias/VALIDACION_RENDER.md).
-
-## Historial y efectivo
-
-El panel filtra por nodo, cuenta y fechas inclusivas en America/Mexico_City; conserva filtros al paginar y exportar CSV. Para ajustar efectivo del cajero, coordinar con su responsable sin pendientes y usar la página actual: se rechaza un formulario cuyo efectivo anterior ya cambió. Los retiros/depósitos nuevos del cajero actualizan efectivo central atómicamente.
-
-Las ampliaciones utilizan migraciones incrementales; no volver a ejecutar `supabase/001_schema.sql` en una base existente. Los comprobantes ATM se guardan aparte del ledger inmutable y no se borran para permitir recuperación tras reinicios.
-
-La validación del contrato ATM en Render aprobó 54 solicitudes Postman y 107 aserciones, incluida recuperación después de reiniciar el Core. El panel también se verificó con filtros y Realtime privado. Consultar [VALIDACION_NODO3.md](evidencias/VALIDACION_NODO3.md). La aceptación de la aplicación ATM ya está completada; consultar [ENTREGA_NODO3.md](ENTREGA_NODO3.md) y las evidencias `tres_nodos_render_resultados.json` y `tres_nodos_reinicio_render.json`.
-
-## Entrega final del equipo
-
-Consultar [entrega final](ENTREGA_FINAL.md), [guion de 10 minutos](GUION_DEMOSTRACION.md), [resumen del proyecto](RESUMEN_EQUIPO.md) y [respaldo del cajero](RESPALDO_NODO3.md). Se volvió a ensayar el flujo completo en Render con 46 solicitudes / 49 aserciones, sin fallos. El respaldo privado se restauró y verificó en PostgreSQL aislado. La exposición corresponde al equipo.
+**La demostración en vivo está pendiente y se realizará posteriormente, cuando indique el profesor.** Las pruebas y capturas documentadas corresponden a validaciones técnicas previas; no sustituyen la exposición del equipo.

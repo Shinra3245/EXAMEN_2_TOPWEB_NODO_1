@@ -11,7 +11,7 @@ El despliegue acordado es Render Free con Docker. Vercel y Coolify son opcionale
 - PostgreSQL usa el **Session pooler** verificado del proyecto: `aws-0-us-east-1.pooler.supabase.com:5432`, usuario `postgres.rtfdnrwcjwovpplmfthc`, base `postgres`, `DB_SSLMODE=require`. [Guía de Supabase para Laravel](https://supabase.com/docs/guides/getting-started/quickstarts/laravel).
 - Sesiones cifradas en cookies, caché de archivos y cola síncrona. No requieren tablas Laravel de sesiones, caché o trabajos. Los datos bancarios y los administradores se conservan en Supabase.
 - Los archivos `.env*`, las claves, las sesiones locales y los registros quedan excluidos de la imagen por `.dockerignore`.
-- El arranque genera caché de configuración y vistas. No ejecuta migraciones ni recrea tablas automáticamente.
+- El arranque genera caché de configuración y vistas y aplica las migraciones incrementales pendientes con `php artisan migrate --force`. No ejecuta `migrate:fresh` ni recrea las tablas existentes.
 
 ## Variables privadas
 
@@ -35,7 +35,7 @@ La colección conjunta está en `postman_integracion_collection.json` y su guía
 
 Render Free puede suspender el servicio tras inactividad y usa disco efímero; las cookies evitan depender del disco para las sesiones del panel y Supabase conserva los datos bancarios. Abrir y verificar el servicio antes de la demostración. [Condiciones del plan gratuito](https://render.com/docs/free).
 
-## Servicio publicado y validado
+## Validación histórica inicial del servicio
 
 - URL pública: https://banco-central-nodo1.onrender.com
 - Panel: https://banco-central-nodo1.onrender.com/admin/login
