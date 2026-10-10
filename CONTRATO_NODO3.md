@@ -1,6 +1,6 @@
 # Contrato del cajero con el Banco Central
 
-Implementación del contrato `central-contract.md` recibido el 9 de octubre de 2026. La ampliación ya está desplegada y validada en Render. La aplicación del Nodo 3 todavía no tiene URL disponible; las pruebas aquí descritas corresponden al Core y a su integración con el Nodo 2.
+Implementación del contrato `central-contract.md` recibido el 9 de octubre de 2026. La ampliación está desplegada y validada en Render. El cajero real está disponible en https://node3-atm.onrender.com y su aceptación conjunta está completada: 46 solicitudes Postman / 49 aserciones, incluido reinicio del ATM. Las pruebas específicas del Core descritas abajo conservan su alcance original.
 
 URL central: `https://banco-central-nodo1.onrender.com/api`. Enviar `X-API-KEY` del cajero en todas las solicitudes. El Nodo 3 no necesita credenciales de Supabase. Obtener la clave por el canal privado ya usado por el equipo; no publicarla en GitHub, capturas ni exportaciones de Postman.
 
@@ -68,7 +68,7 @@ Importar [postman_contrato_nodo3_collection.json](postman_contrato_nodo3_collect
 
 La colección verifica identidad, apertura 1000, retiro 300, saldo 700, depósito, reintento, recuperación por clave, conflictos, saldo/efectivo insuficientes, validación, autenticación e historial por nodo. PostgreSQL aislado también comprueba cuenta bloqueada, desbordamiento, inmutabilidad y concurrencia real. El archivo [openapi.yaml](openapi.yaml) contiene las respuestas y campos.
 
-Cuando esté disponible el Nodo 3, ejecutar desde su propia aplicación: configurar el cajero, consultar la cuenta creada en Nodo 2, retirar 300, depositar, perder una respuesta y recuperar, reiniciar y recuperar pendientes, y verificar su inventario local y reportes. Esta aceptación no se sustituye por el simulador ni por llamadas directas al Core.
+La aceptación de la aplicación del Nodo 3 ya comprobó configuración, consulta de la cuenta creada en Nodo 2, retiro de 300, depósito, inventario, sesión y recuperación después de reiniciar Render. Una prueba adicional con el Core real recuperó una respuesta perdida sin duplicar el depósito. Consultar [ENTREGA_NODO3.md](ENTREGA_NODO3.md) y [FLUJO_POSTMAN.md](FLUJO_POSTMAN.md). Estas pruebas se distinguen de las llamadas directas al Core y del simulador.
 
 Realtime del panel utiliza un canal privado con autorización de administrador. Referencias: [Broadcast](https://supabase.com/docs/guides/realtime/broadcast) y [Realtime Authorization](https://supabase.com/docs/guides/realtime/authorization). Las tablas financieras conservan RLS y el navegador no recibe la clave de servicio.
 

@@ -110,3 +110,7 @@ El panel filtra por nodo, cuenta y fechas inclusivas en America/Mexico_City; con
 Las ampliaciones utilizan migraciones incrementales; no volver a ejecutar `supabase/001_schema.sql` en una base existente. Los comprobantes ATM se guardan aparte del ledger inmutable y no se borran para permitir recuperación tras reinicios.
 
 La validación del contrato ATM en Render aprobó 54 solicitudes Postman y 107 aserciones, incluida recuperación después de reiniciar el Core. El panel también se verificó con filtros y Realtime privado. Consultar [VALIDACION_NODO3.md](evidencias/VALIDACION_NODO3.md). La aceptación de la aplicación ATM ya está completada; consultar [ENTREGA_NODO3.md](ENTREGA_NODO3.md) y las evidencias `tres_nodos_render_resultados.json` y `tres_nodos_reinicio_render.json`.
+
+## Entrega final del equipo
+
+Consultar [entrega final](ENTREGA_FINAL.md), [guion de 10 minutos](GUION_DEMOSTRACION.md), [resumen del proyecto](RESUMEN_EQUIPO.md) y [respaldo del cajero](RESPALDO_NODO3.md). Se volvió a ensayar el flujo completo en Render con 46 solicitudes / 49 aserciones, sin fallos. El respaldo privado se restauró y verificó en PostgreSQL aislado. La exposición corresponde al equipo.

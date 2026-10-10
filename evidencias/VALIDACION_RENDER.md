@@ -1,5 +1,7 @@
 # Validación real del Nodo 1 en Render
 
+**Estado de cierre:** los tres nodos están publicados y la unión real aprobó 46 solicitudes / 49 aserciones Postman. Consultar [entrega actual](../ENTREGA_NODO3.md). Este archivo conserva las ejecuciones previas del Core y sus commits para mantener la trazabilidad.
+
 Fecha: 9 de octubre de 2026.
 
 Servicio: https://banco-central-nodo1.onrender.com. Versión desplegada: `f51583f`. Plan Free, runtime Docker, estado Live.
@@ -35,9 +37,9 @@ Las migraciones de Laravel reconocieron las tablas existentes y añadieron idemp
 
 Capturas reales: [Servicio Live](render_servicio_live.png) y [Panel de nodos](render_panel_nodos.png).
 
-## Pendiente
+## Alcance de la primera ejecución
 
-La ejecución completa de los nodos 2 y 3 y el inventario físico del ATM. Las carpetas 02 y 03 de Postman están preparadas y desactivadas hasta confirmar las implementaciones y sus contratos. La prueba del Core no equivale a una retirada física realizada por el Nodo 3.
+La primera ejecución probó únicamente el Core. La aceptación posterior sí ejecutó la aplicación del ATM y verificó su inventario local; se registra por separado en la entrega actual. No se confunden los resultados de ambas ejecuciones.
 
 ## Revisión del reporte 500 e historial por nodo
 
@@ -50,7 +52,7 @@ Revisión posterior del 9 de octubre de 2026, sobre la versión funcional `616b4
 - PostgreSQL aislado: 18 pruebas aprobadas, 62 aserciones. Se añadieron casos de clave inválida y de aislamiento del historial con y sin filtro de cuenta, incluyendo una cuenta operada solo por otro nodo.
 - Postman/Newman: carpeta 00, 4 solicitudes y 9 aserciones; carpeta 01, 9 solicitudes y 18 aserciones. Cero fallos, saldo final $700, retiro idempotente y ambos historiales locales separados.
 
-La colección exportable contiene 30 solicitudes. Las carpetas conjuntas 02 y 03 siguen pendientes de las implementaciones reales de los nodos 2 y 3.
+Esa colección histórica contenía 30 solicitudes. La colección conjunta actual utiliza las aplicaciones reales de los tres nodos; está publicada en `postman_integracion_collection.json`.
 
 La integración de GitHub incluye el repositorio del Nodo 1. El servicio usa Git Provider, rama `main`, runtime Docker y Auto-Deploy **On Commit**; `render.yaml` declara `autoDeployTrigger: commit`.
 

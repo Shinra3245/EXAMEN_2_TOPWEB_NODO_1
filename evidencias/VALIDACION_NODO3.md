@@ -1,6 +1,6 @@
 # Validación del contrato ATM y correcciones del Banco Central
 
-9 de octubre de 2026, America/Mexico_City. Core: https://banco-central-nodo1.onrender.com. Sucursal: https://sucursal-nodo2.onrender.com. La URL de la aplicación del Nodo 3 aún no está disponible.
+9 de octubre de 2026, America/Mexico_City. Core: https://banco-central-nodo1.onrender.com. Sucursal: https://sucursal-nodo2.onrender.com. Cajero: https://node3-atm.onrender.com. Las cifras de la tabla documentan la validación específica del Core; la aceptación posterior de la aplicación ATM está descrita al final.
 
 El Core incorpora identidad del nodo, efectivo actual, comprobantes con saldos originales, rechazos durables y recuperación por clave. Saldo, efectivo del cajero, ledger y comprobante se guardan dentro de la misma transacción PostgreSQL. Los rechazos no son transacciones financieras. Las operaciones de sucursal, la apertura con cero, claves `sucursal:...`, errores compartidos y paginación mantienen compatibilidad.
 
@@ -38,8 +38,8 @@ Las pruebas de Postman abrieron cuatro cuentas nuevas de demostración. Los úni
 
 Los reportes publicados contienen nombres de solicitudes, códigos HTTP y aserciones; los entornos y reportes completos con claves permanecen privados.
 
-## Aceptación pendiente de la aplicación ATM
+## Aceptación completada de la aplicación ATM
 
-Conectar el Nodo 3 real y validar su inventario local, configuración, sesiones, depósitos/retiros, errores, reserva local, respuesta perdida y recuperación después de reiniciarlo. El simulador o estas llamadas directas al Core no prueban el funcionamiento de su aplicación. El encargado recibe URL, ID y clave del cajero por el canal privado del equipo.
+La aplicación real del Nodo 3 aprobó 46 solicitudes Postman y 49 aserciones, incluidas consultas después de reiniciar Render. Se verificaron configuración, sesión técnica, retiro de $300 sobre una apertura de $1,000, saldo $700 en los tres nodos, depósito de $50.15, rechazos, reintentos, comprobantes e inventario. Las 39 pruebas PostgreSQL del cajero se registran por separado; una prueba adicional con el Core real recuperó un depósito de $0.01 después de perder su respuesta, sin duplicarlo. Ver [reporte conjunto](../ENTREGA_NODO3.md).
 
-La colección tiene 50 solicitudes en una ejecución completa, incluida la prueba Realtime. La cifra 54 corresponde a esa validación más cuatro consultas/reintento posteriores al reinicio. Importar la colección y el entorno del contrato; activar `permitir_movimientos=true` para la demostración autorizada. La carpeta 04 reutiliza el entorno privado exportado y comprueba recuperación sin crear cuentas nuevas.
+La colección específica del contrato tiene 50 solicitudes en una ejecución completa, incluida la prueba Realtime. La cifra 54 corresponde a esa validación más cuatro consultas/reintento posteriores al reinicio del Core. La colección conjunta de la aplicación ATM es distinta: `postman_integracion_collection.json`, documentada en [FLUJO_POSTMAN.md](../FLUJO_POSTMAN.md).
