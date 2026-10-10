@@ -15,7 +15,7 @@ El Nodo 1 es una API construida con **Laravel 13** que se conecta a una base de 
 ```mermaid
 flowchart LR
   S["Nodo 2 · Express · Render"] -->|HTTPS + X-API-KEY| C["Nodo 1 · Laravel · Render"]
-  A["Nodo 3 · Express · despliegue pendiente"] -->|HTTPS + X-API-KEY| C
+  A["Nodo 3 · Express · Render"] -->|HTTPS + X-API-KEY| C
   C -->|PostgreSQL + SSL| D["Supabase · cuentas, ledger y comprobantes"]
   C --> U["Supabase Auth"]
   D --> R["Supabase Realtime · canal privado"]
@@ -99,7 +99,7 @@ El flujo típico de un Nodo (Sucursal/Cajero) es:
 
 Render es el destino acordado con el profesor. Vercel y Coolify son opcionales. El servicio usa Docker, PHP 8.5, el pooler de sesión de Supabase y variables privadas de Render. Consulte [DESPLIEGUE_RENDER.md](DESPLIEGUE_RENDER.md) para configuración, migraciones, validación y actualización.
 
-La colección conjunta se entrega en `postman_integracion_collection.json`, con el entorno `postman_integracion_environment.json` y las instrucciones en [FLUJO_POSTMAN.md](FLUJO_POSTMAN.md). El Nodo 2 ya está publicado en [Render](https://sucursal-nodo2.onrender.com). La prueba conjunta con la aplicación del Nodo 3 espera su URL. El contrato del cajero y la colección específica están en [CONTRATO_NODO3.md](CONTRATO_NODO3.md).
+La colección conjunta se entrega en `postman_integracion_collection.json`, con el entorno `postman_integracion_environment.json` y las instrucciones en [FLUJO_POSTMAN.md](FLUJO_POSTMAN.md). El Nodo 2 ya está publicado en [Render](https://sucursal-nodo2.onrender.com). El cajero está publicado en https://node3-atm.onrender.com. La prueba real de los tres nodos aprobó 46 solicitudes y 49 aserciones, incluido reinicio del cajero. El contrato del cajero y la colección específica están en [CONTRATO_NODO3.md](CONTRATO_NODO3.md).
 
 Publicado y verificado: [Banco Central](https://banco-central-nodo1.onrender.com) · [Panel administrativo](https://banco-central-nodo1.onrender.com/admin/login). La ampliación del contrato ATM cuenta con 43 pruebas PostgreSQL aisladas (290 aserciones), incluidas tres pruebas HTTP de concurrencia real. La validación inicial en Render registró 27 aserciones Postman sin fallos. El historial de la API está limitado al nodo que procesó cada operación. Evidencia: [VALIDACION_RENDER.md](evidencias/VALIDACION_RENDER.md).
 
@@ -109,4 +109,4 @@ El panel filtra por nodo, cuenta y fechas inclusivas en America/Mexico_City; con
 
 Las ampliaciones utilizan migraciones incrementales; no volver a ejecutar `supabase/001_schema.sql` en una base existente. Los comprobantes ATM se guardan aparte del ledger inmutable y no se borran para permitir recuperación tras reinicios.
 
-La validación del contrato ATM en Render aprobó 54 solicitudes Postman y 107 aserciones, incluida recuperación después de reiniciar el Core. El panel también se verificó con filtros y Realtime privado. Consultar [VALIDACION_NODO3.md](evidencias/VALIDACION_NODO3.md). La aceptación de la aplicación ATM espera la URL del Nodo 3.
+La validación del contrato ATM en Render aprobó 54 solicitudes Postman y 107 aserciones, incluida recuperación después de reiniciar el Core. El panel también se verificó con filtros y Realtime privado. Consultar [VALIDACION_NODO3.md](evidencias/VALIDACION_NODO3.md). La aceptación de la aplicación ATM ya está completada; consultar [ENTREGA_NODO3.md](ENTREGA_NODO3.md) y las evidencias `tres_nodos_render_resultados.json` y `tres_nodos_reinicio_render.json`.
