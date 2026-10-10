@@ -1,0 +1,736 @@
+{
+  "core_commit": "3bb90bd",
+  "scope": "Banco Central y Nodo 2; aplicación del Nodo 3 pendiente de URL",
+  "stats": {
+    "iterations": {
+      "total": 1,
+      "pending": 0,
+      "failed": 0
+    },
+    "items": {
+      "total": 49,
+      "pending": 0,
+      "failed": 0
+    },
+    "scripts": {
+      "total": 98,
+      "pending": 0,
+      "failed": 0
+    },
+    "prerequests": {
+      "total": 49,
+      "pending": 0,
+      "failed": 0
+    },
+    "requests": {
+      "total": 49,
+      "pending": 0,
+      "failed": 0
+    },
+    "tests": {
+      "total": 49,
+      "pending": 0,
+      "failed": 0
+    },
+    "assertions": {
+      "total": 97,
+      "pending": 0,
+      "failed": 0
+    },
+    "testScripts": {
+      "total": 49,
+      "pending": 0,
+      "failed": 0
+    },
+    "prerequestScripts": {
+      "total": 49,
+      "pending": 0,
+      "failed": 0
+    }
+  },
+  "failures": 0,
+  "requests": [
+    {
+      "name": "00 Salud central",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "Central disponible HTTP 200",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Conexión del Nodo 2",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Sucursal conectada en modo real",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Identidad y efectivo ATM",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Cajero activo y con efectivo para la prueba",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Identidad de sucursal compatible",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Sucursal conserva acceso",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Identidad sin clave",
+      "status": 401,
+      "assertions": [
+        {
+          "name": "HTTP 401",
+          "passed": true
+        },
+        {
+          "name": "Error de autenticación como texto",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Recuperación con clave inválida",
+      "status": 401,
+      "assertions": [
+        {
+          "name": "HTTP 401",
+          "passed": true
+        },
+        {
+          "name": "API Key falsa se rechaza sin 500",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Ausencia autoritativa",
+      "status": 404,
+      "assertions": [
+        {
+          "name": "HTTP 404",
+          "passed": true
+        },
+        {
+          "name": "OPERATION_NOT_FOUND",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Abrir cuenta 1000 desde Nodo 2",
+      "status": 201,
+      "assertions": [
+        {
+          "name": "HTTP 201",
+          "passed": true
+        },
+        {
+          "name": "Apertura inicial sin reintento",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Consulta central 1000",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "DTO compartido sin envoltura",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Retiro ATM 300",
+      "status": 201,
+      "assertions": [
+        {
+          "name": "HTTP 201",
+          "passed": true
+        },
+        {
+          "name": "Comprobante completo y saldos correctos",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Consulta central 700",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Saldo global 700",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Consulta Nodo 2 ve retiro ATM",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Sucursal ve saldo central 700",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Recuperar respuesta perdida",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Comprobante original idéntico",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Repetir mismo retiro",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Comprobante original idéntico",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Reintento con monto cambiado",
+      "status": 409,
+      "assertions": [
+        {
+          "name": "HTTP 409",
+          "passed": true
+        },
+        {
+          "name": "Conflicto conserva mensaje",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Depósito ATM 50.15",
+      "status": 201,
+      "assertions": [
+        {
+          "name": "HTTP 201",
+          "passed": true
+        },
+        {
+          "name": "Depósito suma saldo y efectivo",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Recuperar retiro después de otro movimiento",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Recuperación conserva 700 y efectivo original",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Repetir depósito",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Depósito se aplica una vez",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Saldo actual después de reintentos",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Saldo actual 750.15",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Efectivo actual después de reintentos",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Efectivo cambió solo una vez por movimiento",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Historial ATM solo sus dos movimientos",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Solo retiro y depósito del cajero",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Historial sucursal solo apertura",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Apertura pertenece a sucursal",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Historial local Nodo 2 conserva apertura",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Sucursal no mezcla retiros del ATM",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Reporte por cliente Nodo 2",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Reporte local 1000 por apertura",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Recuperación de apertura Nodo 2 tras movimientos",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Misma cuenta y saldo actual",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Saldo insuficiente",
+      "status": 422,
+      "assertions": [
+        {
+          "name": "HTTP 422",
+          "passed": true
+        },
+        {
+          "name": "Rechazo durable INSUFFICIENT_FUNDS",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Recuperar saldo insuficiente",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Mismo rechazo persistido",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Cuenta inexistente",
+      "status": 422,
+      "assertions": [
+        {
+          "name": "HTTP 422",
+          "passed": true
+        },
+        {
+          "name": "Rechazo durable ACCOUNT_NOT_FOUND",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Recuperar cuenta inexistente",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Mismo rechazo persistido",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Monto inválido",
+      "status": 422,
+      "assertions": [
+        {
+          "name": "HTTP 422",
+          "passed": true
+        },
+        {
+          "name": "Rechazo durable VALIDATION_ERROR",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Recuperar monto inválido",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Mismo rechazo persistido",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Abrir cuenta para comprobar límite de efectivo",
+      "status": 201,
+      "assertions": [
+        {
+          "name": "HTTP 201",
+          "passed": true
+        },
+        {
+          "name": "Cuenta de prueba con saldo mayor al efectivo",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Efectivo insuficiente",
+      "status": 422,
+      "assertions": [
+        {
+          "name": "HTTP 422",
+          "passed": true
+        },
+        {
+          "name": "Rechazo INSUFFICIENT_CASH",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Recuperar rechazo por efectivo",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Efectivo rechazado queda registrado",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Otro nodo no ve comprobante ATM",
+      "status": 404,
+      "assertions": [
+        {
+          "name": "HTTP 404",
+          "passed": true
+        },
+        {
+          "name": "Sin fuga de comprobante",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Otro nodo no reutiliza clave ATM",
+      "status": 409,
+      "assertions": [
+        {
+          "name": "HTTP 409",
+          "passed": true
+        },
+        {
+          "name": "Conflicto compartido legible para NODE2",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Rechazos no crean movimientos",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Continúan exactamente dos movimientos",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Rechazos no cambian saldo",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Saldo sin modificación por rechazos",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Rechazos no cambian efectivo",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Efectivo sin modificación por rechazos",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Abrir cuenta con saldo cero",
+      "status": 201,
+      "assertions": [
+        {
+          "name": "HTTP 201",
+          "passed": true
+        },
+        {
+          "name": "Saldo inicial cero válido",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Apertura cero no inventa depósito",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Historial vacío de apertura cero",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Recuperación de apertura cero",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Misma cuenta cero sin nuevo ledger",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Cuenta compartida ausente conserva 404",
+      "status": 404,
+      "assertions": [
+        {
+          "name": "HTTP 404",
+          "passed": true
+        },
+        {
+          "name": "Mensaje compartido como texto",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Cajero no puede abrir cuentas",
+      "status": 403,
+      "assertions": [
+        {
+          "name": "HTTP 403",
+          "passed": true
+        },
+        {
+          "name": "Autorización de apertura por sucursal",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Validación de sucursal conserva errors",
+      "status": 422,
+      "assertions": [
+        {
+          "name": "HTTP 422",
+          "passed": true
+        },
+        {
+          "name": "Validación compartida legible",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Tras reinicio: Recuperar retiro después de otro movimiento",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Recuperación conserva 700 y efectivo original",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Tras reinicio: Saldo actual después de reintentos",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Saldo actual 750.15",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Tras reinicio: Efectivo actual después de reintentos",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Efectivo cambió solo una vez por movimiento",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Tras reinicio: Recuperación de apertura Nodo 2 tras movimientos",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Misma cuenta y saldo actual",
+          "passed": true
+        }
+      ]
+    }
+  ]
+}

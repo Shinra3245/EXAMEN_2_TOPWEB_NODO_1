@@ -1,6 +1,6 @@
 # Contrato del cajero con el Banco Central
 
-Implementación del contrato `central-contract.md` recibido el 9 de octubre de 2026. La aplicación del Nodo 3 todavía no tiene URL disponible; las pruebas aquí descritas corresponden al Core y a su integración con el Nodo 2.
+Implementación del contrato `central-contract.md` recibido el 9 de octubre de 2026. La ampliación ya está desplegada y validada en Render. La aplicación del Nodo 3 todavía no tiene URL disponible; las pruebas aquí descritas corresponden al Core y a su integración con el Nodo 2.
 
 URL central: `https://banco-central-nodo1.onrender.com/api`. Enviar `X-API-KEY` del cajero en todas las solicitudes. El Nodo 3 no necesita credenciales de Supabase. Obtener la clave por el canal privado ya usado por el equipo; no publicarla en GitHub, capturas ni exportaciones de Postman.
 
@@ -71,3 +71,5 @@ La colección verifica identidad, apertura 1000, retiro 300, saldo 700, depósit
 Cuando esté disponible el Nodo 3, ejecutar desde su propia aplicación: configurar el cajero, consultar la cuenta creada en Nodo 2, retirar 300, depositar, perder una respuesta y recuperar, reiniciar y recuperar pendientes, y verificar su inventario local y reportes. Esta aceptación no se sustituye por el simulador ni por llamadas directas al Core.
 
 Realtime del panel utiliza un canal privado con autorización de administrador. Referencias: [Broadcast](https://supabase.com/docs/guides/realtime/broadcast) y [Realtime Authorization](https://supabase.com/docs/guides/realtime/authorization). Las tablas financieras conservan RLS y el navegador no recibe la clave de servicio.
+
+Validación registrada: **43 pruebas PostgreSQL**, **36 de Nodo 2** y **54 solicitudes Postman / 107 aserciones**, sin fallos. Se recuperó el mismo comprobante después de un reinicio real del Core. Evidencia: [VALIDACION_NODO3.md](evidencias/VALIDACION_NODO3.md). La colección completa abre cuatro cuentas de demostración e incluye la señal Realtime del panel.

@@ -180,4 +180,41 @@ class AtmContractTest extends TestCase
 
         $this->assertDatabaseCount('atm_operation_results', 1);
     }
+
+    public function test_key_rotation_preserves_node_identity_cash_and_original_receipt(): void
+    {
+        [, $atm] = $this->nodes();
+        $payload = $this->withdrawal();
+        $receipt = $this->withHeader('X-API-KEY', 'atm-test-key')->postJson('/api/transactions', $payload)->assertCreated()->json();
+
+        $this->withSession(['admin_authenticated' => true])->post('/admin/nodes/'.$atm.'/rotate')->assertRedirect()->assertSessionHas('success');
+        $newKey = Str::after(session('success'), 'LA NUEVA CLAVE API ES: ');
+        $this->withHeader('X-API-KEY', 'atm-test-key')->getJson('/api/transactions/by-idempotency-key/'.$payload['idempotency_key'])->assertUnauthorized();
+        $this->withHeader('X-API-KEY', $newKey)->getJson('/api/nodes/me')->assertOk()->assertJsonPath('data.id', $atm)->assertJsonPath('data.efectivo_disponible', '1200.00');
+        $this->withHeader('X-API-KEY', $newKey)->getJson('/api/transactions/by-idempotency-key/'.$payload['idempotency_key'])->assertOk()->assertExactJson($receipt);
+        $this->assertDatabaseCount('transactions', 1);
+    }
+
+    public function test_receipt_storage_failure_returns_500_and_rolls_back_cash_balance_and_ledger(): void
+    {
+        [, $atm] = $this->nodes();
+        $payload = $this->withdrawal();
+        DB::unprepared(<<<'SQL'
+            CREATE FUNCTION public.test_receipt_failure() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN RAISE EXCEPTION 'Fallo aislado al guardar comprobante'; END; $$;
+            CREATE TRIGGER test_receipt_failure BEFORE INSERT ON public.atm_operation_results
+                FOR EACH ROW EXECUTE FUNCTION public.test_receipt_failure();
+            SQL);
+
+        $this->withHeader('X-API-KEY', 'atm-test-key')->postJson('/api/transactions', $payload)->assertInternalServerError();
+        $this->assertDatabaseHas('users_accounts', ['numero_cuenta' => '00001', 'saldo_global' => '1000.00']);
+        $this->assertDatabaseHas('bank_nodes', ['id' => $atm, 'efectivo_disponible' => '1500.00']);
+        $this->assertDatabaseCount('transactions', 0);
+        $this->assertDatabaseCount('atm_operation_results', 0);
+        $this->withHeader('X-API-KEY', 'atm-test-key')->getJson('/api/transactions/by-idempotency-key/'.$payload['idempotency_key'])->assertNotFound()->assertJsonPath('error.code', 'OPERATION_NOT_FOUND');
+        DB::statement('DROP TRIGGER test_receipt_failure ON public.atm_operation_results');
+        DB::statement('DROP FUNCTION public.test_receipt_failure()');
+        $this->withHeader('X-API-KEY', 'atm-test-key')->postJson('/api/transactions', $payload)->assertCreated()->assertJsonPath('saldo_global', '700.00')->assertJsonPath('efectivo_disponible', '1200.00');
+        $this->assertDatabaseCount('transactions', 1);
+    }
 }

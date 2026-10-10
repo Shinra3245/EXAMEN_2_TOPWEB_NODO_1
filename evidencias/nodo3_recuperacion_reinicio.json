@@ -1,0 +1,110 @@
+{
+  "core_commit": "d22cb3e",
+  "scope": "Recuperación después de reinicio real por despliegue automático de Render",
+  "stats": {
+    "iterations": {
+      "total": 1,
+      "pending": 0,
+      "failed": 0
+    },
+    "items": {
+      "total": 4,
+      "pending": 0,
+      "failed": 0
+    },
+    "scripts": {
+      "total": 8,
+      "pending": 0,
+      "failed": 0
+    },
+    "prerequests": {
+      "total": 4,
+      "pending": 0,
+      "failed": 0
+    },
+    "requests": {
+      "total": 4,
+      "pending": 0,
+      "failed": 0
+    },
+    "tests": {
+      "total": 4,
+      "pending": 0,
+      "failed": 0
+    },
+    "assertions": {
+      "total": 8,
+      "pending": 0,
+      "failed": 0
+    },
+    "testScripts": {
+      "total": 4,
+      "pending": 0,
+      "failed": 0
+    },
+    "prerequestScripts": {
+      "total": 4,
+      "pending": 0,
+      "failed": 0
+    }
+  },
+  "failures": 0,
+  "requests": [
+    {
+      "name": "Tras reinicio: Recuperar retiro después de otro movimiento",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Recuperación conserva 700 y efectivo original",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Tras reinicio: Saldo actual después de reintentos",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Saldo actual 750.15",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Tras reinicio: Efectivo actual después de reintentos",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Efectivo cambió solo una vez por movimiento",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Tras reinicio: Recuperación de apertura Nodo 2 tras movimientos",
+      "status": 200,
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Misma cuenta y saldo actual",
+          "passed": true
+        }
+      ]
+    }
+  ]
+}

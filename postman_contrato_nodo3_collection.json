@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Contrato Nodo 3 en Banco Central + regresión Nodo 2",
-    "description": "Pruebas reales directas al Core y a Nodo 2. No sustituyen las pruebas de la aplicación ATM. Abre tres cuentas de demostración y ejecuta un retiro de 300 y un depósito de 50.15. Las claves permanecen privadas.",
+    "description": "Pruebas reales directas al Core y a Nodo 2. No sustituyen las pruebas de la aplicación ATM. Abre cuatro cuentas de demostración y ejecuta un retiro de 300 y un depósito de 50.15. Las claves permanecen privadas.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_postman_id": "c8ea5c18-8e3d-4166-84f2-eb3284ca559e"
   },

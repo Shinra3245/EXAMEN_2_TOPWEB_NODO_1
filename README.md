@@ -101,10 +101,12 @@ Render es el destino acordado con el profesor. Vercel y Coolify son opcionales. 
 
 La colección conjunta se entrega en `postman_integracion_collection.json`, con el entorno `postman_integracion_environment.json` y las instrucciones en [FLUJO_POSTMAN.md](FLUJO_POSTMAN.md). El Nodo 2 ya está publicado en [Render](https://sucursal-nodo2.onrender.com). La prueba conjunta con la aplicación del Nodo 3 espera su URL. El contrato del cajero y la colección específica están en [CONTRATO_NODO3.md](CONTRATO_NODO3.md).
 
-Publicado y verificado: [Banco Central](https://banco-central-nodo1.onrender.com) · [Panel administrativo](https://banco-central-nodo1.onrender.com/admin/login). La ampliación del contrato ATM cuenta con 41 pruebas PostgreSQL aisladas (269 aserciones), incluidas tres pruebas HTTP de concurrencia real. La validación inicial en Render registró 27 aserciones Postman sin fallos. El historial de la API está limitado al nodo que procesó cada operación. Evidencia: [VALIDACION_RENDER.md](evidencias/VALIDACION_RENDER.md).
+Publicado y verificado: [Banco Central](https://banco-central-nodo1.onrender.com) · [Panel administrativo](https://banco-central-nodo1.onrender.com/admin/login). La ampliación del contrato ATM cuenta con 43 pruebas PostgreSQL aisladas (290 aserciones), incluidas tres pruebas HTTP de concurrencia real. La validación inicial en Render registró 27 aserciones Postman sin fallos. El historial de la API está limitado al nodo que procesó cada operación. Evidencia: [VALIDACION_RENDER.md](evidencias/VALIDACION_RENDER.md).
 
 ## Historial y efectivo
 
 El panel filtra por nodo, cuenta y fechas inclusivas en America/Mexico_City; conserva filtros al paginar y exportar CSV. Para ajustar efectivo del cajero, coordinar con su responsable sin pendientes y usar la página actual: se rechaza un formulario cuyo efectivo anterior ya cambió. Los retiros/depósitos nuevos del cajero actualizan efectivo central atómicamente.
 
 Las ampliaciones utilizan migraciones incrementales; no volver a ejecutar `supabase/001_schema.sql` en una base existente. Los comprobantes ATM se guardan aparte del ledger inmutable y no se borran para permitir recuperación tras reinicios.
+
+La validación del contrato ATM en Render aprobó 54 solicitudes Postman y 107 aserciones, incluida recuperación después de reiniciar el Core. El panel también se verificó con filtros y Realtime privado. Consultar [VALIDACION_NODO3.md](evidencias/VALIDACION_NODO3.md). La aceptación de la aplicación ATM espera la URL del Nodo 3.

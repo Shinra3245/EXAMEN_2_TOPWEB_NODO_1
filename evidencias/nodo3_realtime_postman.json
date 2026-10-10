@@ -1,0 +1,68 @@
+{
+  "core_commit": "3bb90bd",
+  "scope": "Banco Central y Nodo 2; aplicación del Nodo 3 pendiente de URL",
+  "stats": {
+    "iterations": {
+      "total": 1,
+      "pending": 0,
+      "failed": 0
+    },
+    "items": {
+      "total": 1,
+      "pending": 0,
+      "failed": 0
+    },
+    "scripts": {
+      "total": 2,
+      "pending": 0,
+      "failed": 0
+    },
+    "prerequests": {
+      "total": 1,
+      "pending": 0,
+      "failed": 0
+    },
+    "requests": {
+      "total": 1,
+      "pending": 0,
+      "failed": 0
+    },
+    "tests": {
+      "total": 1,
+      "pending": 0,
+      "failed": 0
+    },
+    "assertions": {
+      "total": 2,
+      "pending": 0,
+      "failed": 0
+    },
+    "testScripts": {
+      "total": 1,
+      "pending": 0,
+      "failed": 0
+    },
+    "prerequestScripts": {
+      "total": 1,
+      "pending": 0,
+      "failed": 0
+    }
+  },
+  "failures": 0,
+  "requests": [
+    {
+      "name": "Nuevo depósito de apertura para avisar al panel",
+      "status": 201,
+      "assertions": [
+        {
+          "name": "HTTP 201",
+          "passed": true
+        },
+        {
+          "name": "Apertura Realtime de demostración",
+          "passed": true
+        }
+      ]
+    }
+  ]
+}

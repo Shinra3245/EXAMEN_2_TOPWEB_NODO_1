@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-09",
+  "database": "PostgreSQL 16 aislado en Docker",
+  "core_tests": 40,
+  "core_assertions": 269,
+  "concurrency_http_tests": 3,
+  "concurrency_assertions": 21,
+  "core_total_tests": 43,
+  "core_total_assertions": 290,
+  "node2_tests": 36,
+  "failed": 0,
+  "skipped": 0
+}
