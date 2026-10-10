@@ -2,6 +2,8 @@
 
 **Examen práctico 2 · Tópicos de Programación Web.** Este repositorio contiene el Banco Central del sistema: una API en Laravel y un panel administrativo que consolidan las cuentas, los saldos y las transacciones en Supabase. La sucursal y el cajero funcionan como servicios independientes y se comunican con el Central mediante HTTPS y una API Key propia.
 
+[Documentación general de los tres nodos, sin capturas del sistema](README_DOCUMENTACION.md).
+
 ## Aplicaciones y repositorios
 
 Se entrega **un repositorio por cada nodo**. Los tres servicios están desplegados en Render, conforme a la aclaración del profesor; Vercel y Coolify quedaron como opciones adicionales.
