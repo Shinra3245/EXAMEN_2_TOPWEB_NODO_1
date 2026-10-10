@@ -3,7 +3,7 @@ info:
   title: API Banco Central - Sistema Bancario Distribuido
   description: Endpoints del núcleo del Banco Central para la comunicación con Sucursales
     y Cajeros (ATMs).
-  version: 1.1.0
+  version: 1.2.0
 servers:
 - url: https://banco-central-nodo1.onrender.com/api
   description: Nodo 1 desplegado y validado en Render
@@ -68,6 +68,79 @@ paths:
           description: Cuenta no encontrada.
         '401':
           description: API Key ausente, inválida o de nodo inactivo.
+  /accounts/{numero_cuenta}/transactions:
+    get:
+      summary: Historial completo de una cuenta de la sucursal autenticada
+      description: Incluye movimientos realizados por sucursales y cajeros para
+        esta cuenta. Solo la sucursal que abrió la cuenta puede consultarlo.
+        No modifica saldos y no expone claves de idempotencia de otros nodos.
+        GET /transactions conserva el historial local del nodo autenticado.
+      security:
+      - ApiKeyAuth: []
+      parameters:
+      - name: numero_cuenta
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+      responses:
+        '200':
+          description: Historial paginado de 50 movimientos, ordenado del más reciente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        nodo_id:
+                          type: string
+                          format: uuid
+                        nodo_nombre:
+                          type: string
+                        nodo_tipo:
+                          type: string
+                          enum: [sucursal, cajero]
+                        tipo:
+                          type: string
+                          enum: [deposito, retiro, transferencia]
+                        monto:
+                          type: string
+                          example: '1000.00'
+                        cuenta_origen:
+                          type: string
+                          nullable: true
+                        cuenta_destino:
+                          type: string
+                          nullable: true
+                        created_at:
+                          type: string
+                  total:
+                    type: integer
+                  current_page:
+                    type: integer
+                  last_page:
+                    type: integer
+                  next_page_url:
+                    type: string
+                    nullable: true
+        '401':
+          description: API Key ausente, inválida o de nodo inactivo.
+        '403':
+          description: Un cajero no puede consultar el historial completo de cuentas.
+        '404':
+          description: Cuenta inexistente o perteneciente a otra sucursal.
   /transactions:
     post:
       summary: Registrar transacción (Retiro/Depósito/Transferencia)
@@ -174,7 +247,9 @@ paths:
       summary: Consultar historial de transacciones
       description: Devuelve exclusivamente las operaciones procesadas por el nodo
         autenticado (nodo_id), filtrables por cuenta. La sucursal no ve retiros procesados
-        por un cajero; el saldo global se consulta en /accounts/{numero_cuenta}.
+        por un cajero en esta ruta. La sucursal puede consultar el historial completo
+        de sus cuentas en /accounts/{numero_cuenta}/transactions. El saldo global
+        se consulta en /accounts/{numero_cuenta}.
       security:
       - ApiKeyAuth: []
       parameters:

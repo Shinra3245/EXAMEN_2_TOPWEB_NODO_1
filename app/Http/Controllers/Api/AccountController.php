@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Transaction;
 use App\Models\UserAccount;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -95,5 +96,35 @@ class AccountController extends Controller
             'saldo_global' => $account->saldo_global,
             'estado' => $account->estado,
         ]);
+    }
+
+    public function history(Request $request, string $numero_cuenta): JsonResponse
+    {
+        $node = $request->attributes->get('authenticated_node');
+        if ($node->tipo !== 'sucursal') {
+            return response()->json(['message' => 'Solo una sucursal puede consultar el historial completo de sus cuentas.'], 403);
+        }
+
+        $account = UserAccount::where('numero_cuenta', $numero_cuenta)
+            ->where('sucursal_id', $node->id)->first();
+        if (! $account) {
+            return response()->json(['message' => 'Cuenta no encontrada en esta sucursal.'], 404);
+        }
+
+        $transactions = Transaction::query()
+            ->leftJoin('bank_nodes', 'bank_nodes.id', '=', 'transactions.nodo_id')
+            ->where(function ($query) use ($account): void {
+                $query->where('transactions.cuenta_origen', $account->numero_cuenta)
+                    ->orWhere('transactions.cuenta_destino', $account->numero_cuenta);
+            })
+            ->select([
+                'transactions.id', 'transactions.nodo_id', 'transactions.tipo', 'transactions.monto',
+                'transactions.cuenta_origen', 'transactions.cuenta_destino', 'transactions.created_at',
+                'bank_nodes.nombre as nodo_nombre', 'bank_nodes.tipo as nodo_tipo',
+            ])
+            ->orderBy('transactions.created_at', 'desc')->orderBy('transactions.id', 'desc')
+            ->paginate(50);
+
+        return response()->json($transactions);
     }
 }

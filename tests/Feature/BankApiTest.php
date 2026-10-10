@@ -90,6 +90,109 @@ class BankApiTest extends TestCase
             ->assertJsonMissing(['nodo_id' => $otherNodeId]);
     }
 
+    public function test_account_history_includes_other_nodes_and_paginates_without_exposing_idempotency_keys(): void
+    {
+        $atmId = (string) Str::uuid();
+        DB::table('bank_nodes')->insert([
+            'id' => $atmId, 'nombre' => 'Cajero prueba', 'tipo' => 'cajero',
+            'responsable' => 'Prueba', 'api_key_hash' => hash('sha256', 'history-atm-key'),
+        ]);
+        foreach (['ACCOUNT-HISTORY', 'UNRELATED'] as $number) {
+            DB::table('users_accounts')->insert([
+                'numero_cuenta' => $number, 'nombre_titular' => 'Prueba', 'sucursal_id' => $this->nodeId,
+            ]);
+        }
+        DB::table('transactions')->insert([
+            'nodo_id' => $this->nodeId, 'tipo' => 'deposito', 'cuenta_destino' => 'ACCOUNT-HISTORY',
+            'monto' => 1000, 'idempotency_key' => 'private-opening-key', 'created_at' => '2026-10-09 20:00:00+00',
+        ]);
+        for ($i = 0; $i < 50; $i++) {
+            DB::table('transactions')->insert([
+                'nodo_id' => $atmId, 'tipo' => 'retiro', 'cuenta_origen' => 'ACCOUNT-HISTORY',
+                'monto' => 1, 'idempotency_key' => 'private-atm-key-'.$i, 'created_at' => '2026-10-09 21:00:00+00',
+            ]);
+        }
+        DB::table('transactions')->insert([
+            'nodo_id' => $atmId, 'tipo' => 'deposito', 'cuenta_destino' => 'UNRELATED', 'monto' => 99,
+        ]);
+
+        $first = $this->withHeader('X-API-KEY', $this->nodeKey)->getJson('/api/accounts/ACCOUNT-HISTORY/transactions');
+        $second = $this->getJson('/api/accounts/ACCOUNT-HISTORY/transactions?page=2');
+
+        $first->assertOk()->assertJsonCount(50, 'data')->assertJsonPath('total', 51)
+            ->assertJsonPath('data.0.nodo_nombre', 'Cajero prueba')->assertJsonPath('data.0.nodo_tipo', 'cajero')
+            ->assertJsonMissingPath('data.0.idempotency_key')->assertJsonMissing(['cuenta_destino' => 'UNRELATED']);
+        $second->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.monto', '1000.00')
+            ->assertJsonPath('data.0.nodo_id', (string) $this->nodeId)->assertJsonPath('data.0.nodo_tipo', 'sucursal');
+        $this->assertDatabaseCount('transactions', 52);
+    }
+
+    public static function accountHistoryAuthentication(): array
+    {
+        return [
+            'sin clave' => [null, 'Missing X-API-KEY header'],
+            'clave falsa' => ['invalid-history-key', 'Invalid or inactive API Key'],
+        ];
+    }
+
+    #[DataProvider('accountHistoryAuthentication')]
+    public function test_account_history_requires_authentication(?string $key, string $message): void
+    {
+        if ($key !== null) {
+            $this->withHeader('X-API-KEY', $key);
+        }
+
+        $this->getJson('/api/accounts/ACCOUNT-HISTORY/transactions')
+            ->assertUnauthorized()->assertJson(['error' => $message]);
+    }
+
+    public function test_account_history_rejects_atm_role_with_403(): void
+    {
+        DB::table('bank_nodes')->where('id', $this->nodeId)->update(['tipo' => 'cajero']);
+
+        $this->withHeader('X-API-KEY', $this->nodeKey)->getJson('/api/accounts/ACCOUNT-HISTORY/transactions')
+            ->assertForbidden()->assertJson(['message' => 'Solo una sucursal puede consultar el historial completo de sus cuentas.']);
+    }
+
+    public function test_account_history_rejects_inactive_node_with_401(): void
+    {
+        DB::table('bank_nodes')->where('id', $this->nodeId)->update(['activo' => false]);
+
+        $this->withHeader('X-API-KEY', $this->nodeKey)->getJson('/api/accounts/ACCOUNT-HISTORY/transactions')
+            ->assertUnauthorized()->assertJson(['error' => 'Invalid or inactive API Key']);
+    }
+
+    public function test_account_history_does_not_expose_another_branch_account(): void
+    {
+        $otherBranchId = (string) Str::uuid();
+        DB::table('bank_nodes')->insert([
+            'id' => $otherBranchId, 'nombre' => 'Otra sucursal', 'tipo' => 'sucursal',
+            'responsable' => 'Prueba', 'api_key_hash' => hash('sha256', 'other-branch-key'),
+        ]);
+        DB::table('users_accounts')->insert([
+            'numero_cuenta' => 'OTHER-BRANCH', 'nombre_titular' => 'Cliente de otra sucursal', 'sucursal_id' => $otherBranchId,
+        ]);
+
+        $this->withHeader('X-API-KEY', $this->nodeKey)->getJson('/api/accounts/OTHER-BRANCH/transactions')
+            ->assertNotFound()->assertExactJson(['message' => 'Cuenta no encontrada en esta sucursal.']);
+    }
+
+    public function test_account_history_returns_404_for_missing_account(): void
+    {
+        $this->withHeader('X-API-KEY', $this->nodeKey)->getJson('/api/accounts/MISSING/transactions')
+            ->assertNotFound()->assertExactJson(['message' => 'Cuenta no encontrada en esta sucursal.']);
+    }
+
+    public function test_existing_account_without_movements_has_empty_complete_history(): void
+    {
+        DB::table('users_accounts')->insert([
+            'numero_cuenta' => 'EMPTY-HISTORY', 'nombre_titular' => 'Prueba', 'sucursal_id' => $this->nodeId,
+        ]);
+
+        $this->withHeader('X-API-KEY', $this->nodeKey)->getJson('/api/accounts/EMPTY-HISTORY/transactions')
+            ->assertOk()->assertJsonCount(0, 'data')->assertJsonPath('total', 0);
+    }
+
     public function test_create_account_and_deposit_initial_balance()
     {
         $response = $this->withHeader('X-API-KEY', $this->nodeKey)

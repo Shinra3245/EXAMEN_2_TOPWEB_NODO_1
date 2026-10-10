@@ -11,6 +11,7 @@ Route::middleware(['node.auth'])->group(function () {
     Route::get('/transactions/by-idempotency-key/{key}', [AtmOperationController::class, 'show']);
     Route::post('/accounts', [AccountController::class, 'store']);
     Route::get('/accounts/{numero_cuenta}', [AccountController::class, 'show']);
+    Route::get('/accounts/{numero_cuenta}/transactions', [AccountController::class, 'history']);
 
     Route::post('/transactions', [TransactionController::class, 'store']);
     Route::get('/transactions', [TransactionController::class, 'index']);
