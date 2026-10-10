@@ -24,6 +24,7 @@ ServerName localhost
 APACHE
 
 php artisan config:cache --no-interaction
+php artisan migrate --force --no-interaction
 php artisan view:cache --no-interaction
 chown -R www-data:www-data storage bootstrap/cache
 

@@ -4,9 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Transaction;
+use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminNodeController extends Controller
 {
@@ -63,36 +69,61 @@ class AdminNodeController extends Controller
         return back()->with('success', 'Clave rotada para el nodo. LA NUEVA CLAVE API ES: '.$rawApiKey);
     }
 
-    public function updateCash(Request $request, $id)
+    public function updateCash(Request $request, string $id): RedirectResponse
     {
         $request->validate([
-            'efectivo_asignado' => 'required|numeric|min:0',
+            'efectivo_asignado' => 'required|numeric|min:0|max:9999999999999.99|decimal:0,2',
+            'efectivo_anterior' => 'required|numeric|min:0|max:9999999999999.99|decimal:0,2',
         ]);
 
-        DB::table('bank_nodes')->where('id', $id)->update([
-            'efectivo_disponible' => $request->efectivo_asignado,
-        ]);
+        DB::transaction(function () use ($request, $id): void {
+            $node = DB::table('bank_nodes')->where('id', $id)->lockForUpdate()->first();
+            abort_unless($node, 404);
+            if ($node->tipo === 'cajero') {
+                $request->validate(['confirmar_sin_pendientes' => 'accepted']);
+            }
+            if (bccomp((string) $node->efectivo_disponible, (string) $request->efectivo_anterior, 2) !== 0) {
+                throw ValidationException::withMessages(['efectivo_asignado' => 'El efectivo cambió. Actualiza la página y coordina con el responsable del cajero antes de guardar.']);
+            }
+            DB::table('bank_nodes')->where('id', $id)->update(['efectivo_disponible' => $request->efectivo_asignado]);
+        });
 
         return back()->with('success', 'Efectivo asignado actualizado.');
     }
 
-    public function transactions(Request $request)
+    public function transactions(Request $request): View|StreamedResponse
     {
-        $query = Transaction::query();
+        $request->validate([
+            'cuenta' => 'nullable|string|max:255',
+            'nodo_id' => 'nullable|uuid|exists:bank_nodes,id',
+            'fecha_inicio' => 'nullable|date_format:Y-m-d',
+            'fecha_fin' => ['nullable', 'date_format:Y-m-d', ...($request->filled('fecha_inicio') ? ['after_or_equal:fecha_inicio'] : [])],
+            'export' => 'nullable|in:csv',
+        ]);
+        $query = Transaction::query()->leftJoin('bank_nodes', 'bank_nodes.id', '=', 'transactions.nodo_id')
+            ->select('transactions.*', 'bank_nodes.nombre as nodo_nombre', 'bank_nodes.tipo as nodo_tipo');
+
+        if ($request->filled('nodo_id')) {
+            $query->where('transactions.nodo_id', $request->nodo_id);
+        }
 
         if ($request->filled('cuenta')) {
-            $query->where(function ($q) use ($request) {
+            $query->where(function (Builder $q) use ($request): void {
                 $q->where('cuenta_origen', $request->cuenta)
                     ->orWhere('cuenta_destino', $request->cuenta);
             });
         }
 
-        if ($request->filled('fecha_inicio') && $request->filled('fecha_fin')) {
-            $query->whereBetween('created_at', [$request->fecha_inicio, $request->fecha_fin]);
+        $timezone = 'America/Mexico_City';
+        if ($request->filled('fecha_inicio')) {
+            $query->where('transactions.created_at', '>=', Carbon::parse($request->fecha_inicio, $timezone)->startOfDay()->utc());
+        }
+        if ($request->filled('fecha_fin')) {
+            $query->where('transactions.created_at', '<', Carbon::parse($request->fecha_fin, $timezone)->addDay()->startOfDay()->utc());
         }
 
         if ($request->has('export') && $request->export == 'csv') {
-            $transactions = $query->orderBy('created_at', 'desc')->get();
+            $transactions = $query->orderBy('transactions.created_at', 'desc')->get();
             $csvFileName = 'reporte_transacciones_'.now()->format('Ymd_His').'.csv';
 
             $headers = [
@@ -103,11 +134,12 @@ class AdminNodeController extends Controller
                 'Expires' => '0',
             ];
 
-            $callback = function () use ($transactions) {
+            $callback = function () use ($transactions, $timezone): void {
                 $file = fopen('php://output', 'w');
-                fputcsv($file, ['ID', 'Fecha', 'Tipo', 'Cuenta Origen', 'Cuenta Destino', 'Monto', 'Idempotency Key']);
+                fputcsv($file, ['ID', 'Fecha (America/Mexico_City)', 'Tipo', 'Cuenta Origen', 'Cuenta Destino', 'Monto', 'Idempotency Key', 'Nodo ID', 'Nodo', 'Tipo Nodo'], escape: '');
                 foreach ($transactions as $tx) {
-                    fputcsv($file, [$tx->id, $tx->created_at, $tx->tipo, $tx->cuenta_origen, $tx->cuenta_destino, $tx->monto, $tx->idempotency_key]);
+                    $cells = [$tx->id, Carbon::parse($tx->created_at)->setTimezone($timezone)->format('Y-m-d H:i:s'), $tx->tipo, $tx->cuenta_origen, $tx->cuenta_destino, $tx->monto, $tx->idempotency_key, $tx->nodo_id, $tx->nodo_nombre, $tx->nodo_tipo];
+                    fputcsv($file, array_map(fn ($value) => is_string($value) && preg_match('/^[=+@\-\t\r]/', $value) ? "'".$value : $value, $cells), escape: '');
                 }
                 fclose($file);
             };
@@ -115,8 +147,9 @@ class AdminNodeController extends Controller
             return response()->stream($callback, 200, $headers);
         }
 
-        $transactions = $query->orderBy('created_at', 'desc')->paginate(20);
+        $transactions = $query->orderBy('transactions.created_at', 'desc')->paginate(20)->withQueryString();
+        $nodes = DB::table('bank_nodes')->orderBy('nombre')->get(['id', 'nombre', 'tipo']);
 
-        return view('admin.transactions', compact('transactions'));
+        return view('admin.transactions', compact('transactions', 'nodes'));
     }
 }

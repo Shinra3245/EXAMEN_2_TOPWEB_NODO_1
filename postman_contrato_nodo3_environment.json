@@ -1,0 +1,43 @@
+{
+  "name": "Contrato Nodo 3 — sin secretos",
+  "id": "3a7759d3-f5c0-4163-b072-f0347cadbffb",
+  "_postman_variable_scope": "environment",
+  "values": [
+    {
+      "key": "central_url",
+      "value": "https://banco-central-nodo1.onrender.com",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "sucursal_url",
+      "value": "https://sucursal-nodo2.onrender.com",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "cajero_api_key",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "sucursal_api_key",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "expected_cajero_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "permitir_movimientos",
+      "value": "false",
+      "type": "default",
+      "enabled": true
+    }
+  ]
+}

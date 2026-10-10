@@ -1,16 +1,26 @@
 # EXAMEN 2 TOPWEB: NODO 1 (Banco Central)
 
-Este repositorio contiene la implementación del Nodo 1 (Banco Central) del Sistema Bancario Distribuido. 
+Este repositorio contiene la implementación del Nodo 1 (Banco Central) del Sistema Bancario Distribuido.
 
 ## Arquitectura
 
-El Nodo 1 es una API construida con **Laravel 13** que se conecta a una base de datos central en **Supabase** (PostgreSQL). Utiliza **Supabase Auth** para la autenticación del panel de administradores. 
+El Nodo 1 es una API construida con **Laravel 13** que se conecta a una base de datos central en **Supabase** (PostgreSQL). Utiliza **Supabase Auth** para la autenticación del panel y **Supabase Realtime** para avisar de nuevos movimientos mediante un canal privado autorizado por RLS.
 
 - **Framework**: Laravel 13
 - **Base de Datos**: PostgreSQL en Supabase, con seguridad RLS a nivel de tablas.
 - **Autenticación**: Supabase Auth para usuarios administradores; API Keys hasheadas con SHA-256 para nodos sucursales y cajeros.
 - **Operaciones Atómicas**: Se usa `DB::transaction()` con bloqueo pesimista (`lockForUpdate`) para garantizar la consistencia en depósitos y retiros.
 - **Idempotencia**: Las transacciones usan `idempotency_key` para evitar transferencias o retiros duplicados ante problemas de red.
+
+```mermaid
+flowchart LR
+  S["Nodo 2 · Express · Render"] -->|HTTPS + X-API-KEY| C["Nodo 1 · Laravel · Render"]
+  A["Nodo 3 · Express · despliegue pendiente"] -->|HTTPS + X-API-KEY| C
+  C -->|PostgreSQL + SSL| D["Supabase · cuentas, ledger y comprobantes"]
+  C --> U["Supabase Auth"]
+  D --> R["Supabase Realtime · canal privado"]
+  R --> P["Panel administrativo"]
+```
 
 ## Configuración e Instalación
 
@@ -89,6 +99,12 @@ El flujo típico de un Nodo (Sucursal/Cajero) es:
 
 Render es el destino acordado con el profesor. Vercel y Coolify son opcionales. El servicio usa Docker, PHP 8.5, el pooler de sesión de Supabase y variables privadas de Render. Consulte [DESPLIEGUE_RENDER.md](DESPLIEGUE_RENDER.md) para configuración, migraciones, validación y actualización.
 
-La colección conjunta se entrega en `postman_integracion_collection.json`, con el entorno `postman_integracion_environment.json` y las instrucciones en [FLUJO_POSTMAN.md](FLUJO_POSTMAN.md). La integración completa se ejecutará cuando los nodos 2 y 3 terminen.
+La colección conjunta se entrega en `postman_integracion_collection.json`, con el entorno `postman_integracion_environment.json` y las instrucciones en [FLUJO_POSTMAN.md](FLUJO_POSTMAN.md). El Nodo 2 ya está publicado en [Render](https://sucursal-nodo2.onrender.com). La prueba conjunta con la aplicación del Nodo 3 espera su URL. El contrato del cajero y la colección específica están en [CONTRATO_NODO3.md](CONTRATO_NODO3.md).
 
-Publicado y verificado: [Banco Central](https://banco-central-nodo1.onrender.com) · [Panel administrativo](https://banco-central-nodo1.onrender.com/admin/login). Se ejecutaron 18 pruebas PostgreSQL aisladas (62 aserciones) y 27 aserciones Postman sobre Render, sin fallos. El historial de la API está limitado al nodo que procesó cada operación. Evidencia: [VALIDACION_RENDER.md](evidencias/VALIDACION_RENDER.md).
+Publicado y verificado: [Banco Central](https://banco-central-nodo1.onrender.com) · [Panel administrativo](https://banco-central-nodo1.onrender.com/admin/login). La ampliación del contrato ATM cuenta con 41 pruebas PostgreSQL aisladas (269 aserciones), incluidas tres pruebas HTTP de concurrencia real. La validación inicial en Render registró 27 aserciones Postman sin fallos. El historial de la API está limitado al nodo que procesó cada operación. Evidencia: [VALIDACION_RENDER.md](evidencias/VALIDACION_RENDER.md).
+
+## Historial y efectivo
+
+El panel filtra por nodo, cuenta y fechas inclusivas en America/Mexico_City; conserva filtros al paginar y exportar CSV. Para ajustar efectivo del cajero, coordinar con su responsable sin pendientes y usar la página actual: se rechaza un formulario cuyo efectivo anterior ya cambió. Los retiros/depósitos nuevos del cajero actualizan efectivo central atómicamente.
+
+Las ampliaciones utilizan migraciones incrementales; no volver a ejecutar `supabase/001_schema.sql` en una base existente. Los comprobantes ATM se guardan aparte del ledger inmutable y no se borran para permitir recuperación tras reinicios.

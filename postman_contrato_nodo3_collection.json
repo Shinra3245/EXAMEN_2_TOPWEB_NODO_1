@@ -1,0 +1,1706 @@
+{
+  "info": {
+    "name": "Contrato Nodo 3 en Banco Central + regresión Nodo 2",
+    "description": "Pruebas reales directas al Core y a Nodo 2. No sustituyen las pruebas de la aplicación ATM. Abre tres cuentas de demostración y ejecuta un retiro de 300 y un depósito de 50.15. Las claves permanecen privadas.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "c8ea5c18-8e3d-4166-84f2-eb3284ca559e"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.info.requestName === \"00 Salud central\") {",
+          "  const vars=[\"run_id\",\"opening_key\",\"withdraw_key\",\"deposit_key\",\"funds_key\",\"missing_key\",\"validation_key\",\"cash_opening_key\",\"cash_key\",\"zero_key\"];",
+          "  for(const variable of vars) pm.environment.set(variable,pm.variables.replaceIn(\"{{$guid}}\"));",
+          "}",
+          "if (pm.request.method === \"POST\" && pm.environment.get(\"permitir_movimientos\") !== \"true\") {",
+          "  pm.execution.skipRequest(); throw new Error(\"Activar permitir_movimientos=true únicamente para las cuentas de demostración autorizadas.\");",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Salud e identidad",
+      "item": [
+        {
+          "name": "00 Salud central",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/up"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Central disponible HTTP 200\",()=>pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Conexión del Nodo 2",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sucursal_url}}/api/estado"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Sucursal conectada en modo real\",()=>{pm.expect(d.conectado).to.eql(true);pm.expect(d.modo_prueba).to.eql(false);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identidad y efectivo ATM",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/nodes/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Cajero activo y con efectivo para la prueba\",()=>{pm.expect(d.data.tipo).to.eql(\"cajero\");pm.expect(d.data.activo).to.eql(true);pm.expect(Number(d.data.efectivo_disponible)).to.be.at.least(300);if(pm.environment.get(\"expected_cajero_id\"))pm.expect(d.data.id).to.eql(pm.environment.get(\"expected_cajero_id\"));});pm.environment.set(\"cash_initial_cents\",Math.round(Number(d.data.efectivo_disponible)*100));pm.environment.set(\"atm_id\",d.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identidad de sucursal compatible",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/nodes/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Sucursal conserva acceso\",()=>pm.expect(d.data.tipo).to.eql(\"sucursal\"));pm.environment.set(\"branch_id\",d.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identidad sin clave",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/nodes/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\",()=>pm.response.to.have.status(401));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Error de autenticación como texto\",()=>pm.expect(d.error).to.eql(\"Missing X-API-KEY header\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Recuperación con clave inválida",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "clave-falsa"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions/by-idempotency-key/{{withdraw_key}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\",()=>pm.response.to.have.status(401));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"API Key falsa se rechaza sin 500\",()=>pm.expect(d.error).to.eql(\"Invalid or inactive API Key\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ausencia autoritativa",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions/by-idempotency-key/{{withdraw_key}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"OPERATION_NOT_FOUND\",()=>pm.expect(d.error.code).to.eql(\"OPERATION_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 Flujo 1000 - retiro 300 - depósito",
+      "item": [
+        {
+          "name": "Abrir cuenta 1000 desde Nodo 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sucursal_url}}/api/cuentas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"titular\": \"Demo contrato Nodo 3 {{run_id}}\", \"saldo_inicial\": 1000, \"idempotency_key\": \"{{opening_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Apertura inicial sin reintento\",()=>{pm.expect(d.saldo).to.eql(1000);pm.expect(d.reintentada).to.eql(false);pm.expect(d.numero_cuenta).to.be.a(\"string\");});pm.environment.set(\"account\",d.numero_cuenta);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consulta central 1000",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts/{{account}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"DTO compartido sin envoltura\",()=>{pm.expect(d.saldo_global).to.eql(\"1000.00\");pm.expect(d).not.to.have.property(\"data\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retiro ATM 300",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tipo\": \"retiro\", \"cuenta_origen\": \"{{account}}\", \"monto\": \"300.00\", \"idempotency_key\": \"{{withdraw_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Comprobante completo y saldos correctos\",()=>{pm.expect(d.status).to.eql(\"succeeded\");pm.expect(d.saldo_global).to.eql(\"700.00\");pm.expect(Math.round(Number(d.efectivo_disponible)*100)).to.eql(Number(pm.environment.get(\"cash_initial_cents\"))-30000);pm.expect(d.transaction.nodo_id).to.eql(pm.environment.get(\"atm_id\"));pm.expect(d.transaction.idempotency_key).to.eql(pm.environment.get(\"withdraw_key\"));pm.expect(d.transaction.cuenta_origen).to.eql(pm.environment.get(\"account\"));pm.expect(d.transaction.monto).to.eql(\"300.00\");pm.expect(d.transaction.id).to.be.a(\"string\");pm.expect(Number.isNaN(Date.parse(d.transaction.created_at))).to.eql(false);});pm.environment.set(\"withdraw_receipt\",JSON.stringify(d));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consulta central 700",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts/{{account}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Saldo global 700\",()=>pm.expect(d.saldo_global).to.eql(\"700.00\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consulta Nodo 2 ve retiro ATM",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sucursal_url}}/api/cuentas/{{account}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Sucursal ve saldo central 700\",()=>pm.expect(d.saldo).to.eql(700));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Recuperar respuesta perdida",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions/by-idempotency-key/{{withdraw_key}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Comprobante original idéntico\",()=>pm.expect(d).to.eql(JSON.parse(pm.environment.get(\"withdraw_receipt\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Repetir mismo retiro",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tipo\": \"retiro\", \"cuenta_origen\": \"{{account}}\", \"monto\": \"300.00\", \"idempotency_key\": \"{{withdraw_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Comprobante original idéntico\",()=>pm.expect(d).to.eql(JSON.parse(pm.environment.get(\"withdraw_receipt\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reintento con monto cambiado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tipo\": \"retiro\", \"cuenta_origen\": \"{{account}}\", \"monto\": \"301.00\", \"idempotency_key\": \"{{withdraw_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Conflicto conserva mensaje\",()=>{pm.expect(d.error.code).to.eql(\"IDEMPOTENCY_CONFLICT\");pm.expect(d.message).to.be.a(\"string\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Depósito ATM 50.15",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tipo\": \"deposito\", \"cuenta_destino\": \"{{account}}\", \"monto\": \"50.15\", \"idempotency_key\": \"{{deposit_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Depósito suma saldo y efectivo\",()=>{pm.expect(d.status).to.eql(\"succeeded\");pm.expect(d.saldo_global).to.eql(\"750.15\");pm.expect(Math.round(Number(d.efectivo_disponible)*100)).to.eql(Number(pm.environment.get(\"cash_initial_cents\"))-24985);});pm.environment.set(\"deposit_receipt\",JSON.stringify(d));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Recuperar retiro después de otro movimiento",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions/by-idempotency-key/{{withdraw_key}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Recuperación conserva 700 y efectivo original\",()=>pm.expect(d).to.eql(JSON.parse(pm.environment.get(\"withdraw_receipt\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Repetir depósito",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tipo\": \"deposito\", \"cuenta_destino\": \"{{account}}\", \"monto\": \"50.15\", \"idempotency_key\": \"{{deposit_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Depósito se aplica una vez\",()=>pm.expect(d).to.eql(JSON.parse(pm.environment.get(\"deposit_receipt\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Saldo actual después de reintentos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts/{{account}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Saldo actual 750.15\",()=>pm.expect(d.saldo_global).to.eql(\"750.15\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Efectivo actual después de reintentos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/nodes/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Efectivo cambió solo una vez por movimiento\",()=>pm.expect(Math.round(Number(d.data.efectivo_disponible)*100)).to.eql(Number(pm.environment.get(\"cash_initial_cents\"))-24985));const cents=Math.round(Number(d.data.efectivo_disponible)*100);pm.environment.set(\"cash_reject_amount\",((cents+1)/100).toFixed(2));pm.environment.set(\"cash_test_initial\",((cents+10001)/100).toFixed(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Historial ATM solo sus dos movimientos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions?cuenta={{account}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Solo retiro y depósito del cajero\",()=>{pm.expect(d.data.length).to.eql(2);pm.expect(d.data.every(t=>t.nodo_id===pm.environment.get(\"atm_id\"))).to.eql(true);pm.expect(d.total).to.eql(2);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Historial sucursal solo apertura",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions?cuenta={{account}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Apertura pertenece a sucursal\",()=>{pm.expect(d.data.length).to.eql(1);pm.expect(d.data[0].tipo).to.eql(\"deposito\");pm.expect(d.data[0].monto).to.eql(\"1000.00\");pm.expect(d.data[0].nodo_id).to.eql(pm.environment.get(\"branch_id\"));pm.expect(d.data[0].idempotency_key).to.match(/^sucursal:/);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Historial local Nodo 2 conserva apertura",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sucursal_url}}/api/transacciones?cuenta={{account}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Sucursal no mezcla retiros del ATM\",()=>{pm.expect(d.length).to.eql(1);pm.expect(d[0].monto).to.eql(1000);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reporte por cliente Nodo 2",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sucursal_url}}/api/reportes?cuenta={{account}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Reporte local 1000 por apertura\",()=>{pm.expect(d.operaciones).to.eql(1);pm.expect(d.monto_total).to.eql(1000);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Recuperación de apertura Nodo 2 tras movimientos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sucursal_url}}/api/cuentas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"titular\": \"Demo contrato Nodo 3 {{run_id}}\", \"saldo_inicial\": 1000, \"idempotency_key\": \"{{opening_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Misma cuenta y saldo actual\",()=>{pm.expect(d.reintentada).to.eql(true);pm.expect(d.numero_cuenta).to.eql(pm.environment.get(\"account\"));pm.expect(d.saldo).to.eql(750.15);});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Rechazos durables y aislamiento",
+      "item": [
+        {
+          "name": "Saldo insuficiente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tipo\": \"retiro\", \"cuenta_origen\": \"{{account}}\", \"monto\": \"750.16\", \"idempotency_key\": \"{{funds_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\",()=>pm.response.to.have.status(422));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Rechazo durable INSUFFICIENT_FUNDS\",()=>{pm.expect(d.status).to.eql(\"rejected\");pm.expect(d.error.code).to.eql(\"INSUFFICIENT_FUNDS\");pm.expect(d.idempotency_key).to.eql(pm.environment.get(\"funds_key\"));});pm.environment.set(\"funds_key_receipt\",JSON.stringify(d));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Recuperar saldo insuficiente",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions/by-idempotency-key/{{funds_key}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Mismo rechazo persistido\",()=>pm.expect(d).to.eql(JSON.parse(pm.environment.get(\"funds_key_receipt\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cuenta inexistente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tipo\": \"retiro\", \"cuenta_origen\": \"INEXISTENTE-{{run_id}}\", \"monto\": \"300.00\", \"idempotency_key\": \"{{missing_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\",()=>pm.response.to.have.status(422));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Rechazo durable ACCOUNT_NOT_FOUND\",()=>{pm.expect(d.status).to.eql(\"rejected\");pm.expect(d.error.code).to.eql(\"ACCOUNT_NOT_FOUND\");pm.expect(d.idempotency_key).to.eql(pm.environment.get(\"missing_key\"));});pm.environment.set(\"missing_key_receipt\",JSON.stringify(d));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Recuperar cuenta inexistente",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions/by-idempotency-key/{{missing_key}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Mismo rechazo persistido\",()=>pm.expect(d).to.eql(JSON.parse(pm.environment.get(\"missing_key_receipt\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Monto inválido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tipo\": \"retiro\", \"cuenta_origen\": \"{{account}}\", \"monto\": \"0.001\", \"idempotency_key\": \"{{validation_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\",()=>pm.response.to.have.status(422));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Rechazo durable VALIDATION_ERROR\",()=>{pm.expect(d.status).to.eql(\"rejected\");pm.expect(d.error.code).to.eql(\"VALIDATION_ERROR\");pm.expect(d.idempotency_key).to.eql(pm.environment.get(\"validation_key\"));});pm.environment.set(\"validation_key_receipt\",JSON.stringify(d));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Recuperar monto inválido",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions/by-idempotency-key/{{validation_key}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Mismo rechazo persistido\",()=>pm.expect(d).to.eql(JSON.parse(pm.environment.get(\"validation_key_receipt\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Abrir cuenta para comprobar límite de efectivo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sucursal_url}}/api/cuentas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"titular\":\"Demo efectivo {{run_id}}\",\"saldo_inicial\":{{cash_test_initial}},\"idempotency_key\":\"{{cash_opening_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Cuenta de prueba con saldo mayor al efectivo\",()=>pm.expect(d.saldo).to.be.above(Number(pm.environment.get(\"cash_reject_amount\"))));pm.environment.set(\"cash_account\",d.numero_cuenta);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Efectivo insuficiente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tipo\": \"retiro\", \"cuenta_origen\": \"{{cash_account}}\", \"monto\": \"{{cash_reject_amount}}\", \"idempotency_key\": \"{{cash_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\",()=>pm.response.to.have.status(422));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Rechazo INSUFFICIENT_CASH\",()=>{pm.expect(d.status).to.eql(\"rejected\");pm.expect(d.error.code).to.eql(\"INSUFFICIENT_CASH\");});pm.environment.set(\"cash_key_receipt\",JSON.stringify(d));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Recuperar rechazo por efectivo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions/by-idempotency-key/{{cash_key}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Efectivo rechazado queda registrado\",()=>pm.expect(d).to.eql(JSON.parse(pm.environment.get(\"cash_key_receipt\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Otro nodo no ve comprobante ATM",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions/by-idempotency-key/{{withdraw_key}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Sin fuga de comprobante\",()=>{pm.expect(d.error.code).to.eql(\"OPERATION_NOT_FOUND\");pm.expect(d).not.to.have.property(\"transaction\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Otro nodo no reutiliza clave ATM",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tipo\": \"retiro\", \"cuenta_origen\": \"{{account}}\", \"monto\": \"300.00\", \"idempotency_key\": \"{{withdraw_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Conflicto compartido legible para NODE2\",()=>{pm.expect(d.message).to.be.a(\"string\");pm.expect(d.code).to.eql(\"IDEMPOTENCY_CONFLICT\");pm.expect(d).not.to.have.property(\"error\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rechazos no crean movimientos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions?cuenta={{account}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Continúan exactamente dos movimientos\",()=>pm.expect(d.total).to.eql(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rechazos no cambian saldo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts/{{account}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Saldo sin modificación por rechazos\",()=>pm.expect(d.saldo_global).to.eql(\"750.15\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rechazos no cambian efectivo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/nodes/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Efectivo sin modificación por rechazos\",()=>pm.expect(Math.round(Number(d.data.efectivo_disponible)*100)).to.eql(Number(pm.environment.get(\"cash_initial_cents\"))-24985));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Compatibilidad adicional Nodo 2",
+      "item": [
+        {
+          "name": "Abrir cuenta con saldo cero",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sucursal_url}}/api/cuentas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"titular\": \"Demo cero {{run_id}}\", \"saldo_inicial\": 0, \"idempotency_key\": \"{{zero_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Saldo inicial cero válido\",()=>pm.expect(d.saldo).to.eql(0));pm.environment.set(\"zero_account\",d.numero_cuenta);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Apertura cero no inventa depósito",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions?cuenta={{zero_account}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Historial vacío de apertura cero\",()=>pm.expect(d.total).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Recuperación de apertura cero",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sucursal_url}}/api/cuentas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"titular\": \"Demo cero {{run_id}}\", \"saldo_inicial\": 0, \"idempotency_key\": \"{{zero_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Misma cuenta cero sin nuevo ledger\",()=>{pm.expect(d.reintentada).to.eql(true);pm.expect(d.numero_cuenta).to.eql(pm.environment.get(\"zero_account\"));pm.expect(d.saldo).to.eql(0);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cuenta compartida ausente conserva 404",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts/NO-EXISTE-{{run_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Mensaje compartido como texto\",()=>pm.expect(d.message).to.eql(\"Cuenta no encontrada\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cajero no puede abrir cuentas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\",()=>pm.response.to.have.status(403));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Autorización de apertura por sucursal\",()=>pm.expect(d.message).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validación de sucursal conserva errors",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{sucursal_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\",()=>pm.response.to.have.status(422));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Validación compartida legible\",()=>{pm.expect(d.errors).to.be.an(\"object\");pm.expect(d).not.to.have.property(\"status\");});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Recuperación tras reinicio del Core",
+      "item": [
+        {
+          "name": "Tras reinicio: Recuperar retiro después de otro movimiento",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/transactions/by-idempotency-key/{{withdraw_key}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Recuperación conserva 700 y efectivo original\",()=>pm.expect(d).to.eql(JSON.parse(pm.environment.get(\"withdraw_receipt\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tras reinicio: Saldo actual después de reintentos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/accounts/{{account}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Saldo actual 750.15\",()=>pm.expect(d.saldo_global).to.eql(\"750.15\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tras reinicio: Efectivo actual después de reintentos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-KEY",
+                "value": "{{cajero_api_key}}"
+              }
+            ],
+            "url": "{{central_url}}/api/nodes/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Efectivo cambió solo una vez por movimiento\",()=>pm.expect(Math.round(Number(d.data.efectivo_disponible)*100)).to.eql(Number(pm.environment.get(\"cash_initial_cents\"))-24985));const cents=Math.round(Number(d.data.efectivo_disponible)*100);pm.environment.set(\"cash_reject_amount\",((cents+1)/100).toFixed(2));pm.environment.set(\"cash_test_initial\",((cents+10001)/100).toFixed(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tras reinicio: Recuperación de apertura Nodo 2 tras movimientos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sucursal_url}}/api/cuentas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"titular\": \"Demo contrato Nodo 3 {{run_id}}\", \"saldo_inicial\": 1000, \"idempotency_key\": \"{{opening_key}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Misma cuenta y saldo actual\",()=>{pm.expect(d.reintentada).to.eql(true);pm.expect(d.numero_cuenta).to.eql(pm.environment.get(\"account\"));pm.expect(d.saldo).to.eql(750.15);});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

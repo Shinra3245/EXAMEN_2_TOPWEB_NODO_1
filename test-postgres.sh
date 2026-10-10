@@ -56,4 +56,4 @@ docker run --rm --network "$test_network" \
     -e BANK_CONCURRENCY_URL=http://web:10000 \
     --mount "type=bind,source=$test_root,target=/var/www/html,readonly" \
     --tmpfs /var/www/html/storage --tmpfs /var/www/html/bootstrap/cache \
-    "$test_image" sh -c 'mkdir -p storage/framework/views storage/framework/sessions storage/framework/cache/data storage/logs; php artisan test --compact --do-not-cache-result tests/Feature/BankApiTest.php tests/Feature/DeploymentCompatibilityTest.php tests/Feature/AdminPanelTest.php tests/Feature/ConcurrencyTest.php'
+    "$test_image" sh -c 'mkdir -p storage/framework/views storage/framework/sessions storage/framework/cache/data storage/logs; php artisan test --compact --do-not-cache-result tests/Feature/BankApiTest.php tests/Feature/DeploymentCompatibilityTest.php tests/Feature/AdminPanelTest.php tests/Feature/AtmContractTest.php tests/Feature/AdminReportsTest.php && php artisan test --compact --do-not-cache-result tests/Feature/ConcurrencyTest.php'

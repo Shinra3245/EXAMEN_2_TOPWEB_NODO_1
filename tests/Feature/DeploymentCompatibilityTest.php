@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -41,7 +42,7 @@ class DeploymentCompatibilityTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseHas('bank_nodes', ['nombre' => 'Cajero de prueba', 'efectivo_disponible' => '0.00']);
         $nodeId = DB::table('bank_nodes')->where('nombre', 'Cajero de prueba')->value('id');
-        $this->withSession(['admin_authenticated' => true])->post('/admin/nodes/'.$nodeId.'/cash', ['efectivo_asignado' => '1500.00'])->assertRedirect();
+        $this->withSession(['admin_authenticated' => true])->post('/admin/nodes/'.$nodeId.'/cash', ['efectivo_asignado' => '1500.00', 'efectivo_anterior' => '0.00', 'confirmar_sin_pendientes' => '1'])->assertRedirect();
         $this->assertDatabaseHas('bank_nodes', ['id' => $nodeId, 'efectivo_disponible' => '1500.00']);
         $this->withSession(['admin_authenticated' => true])->get('/admin')->assertOk()->assertSee('1500.00');
     }
@@ -104,7 +105,7 @@ class DeploymentCompatibilityTest extends TestCase
                     };
                 });
                 $this->fail('El ledger aceptó '.$operation);
-            } catch (\Illuminate\Database\QueryException $exception) {
+            } catch (QueryException $exception) {
                 $this->assertStringContainsString('no permite modificaciones ni borrados', $exception->getMessage());
             }
         }

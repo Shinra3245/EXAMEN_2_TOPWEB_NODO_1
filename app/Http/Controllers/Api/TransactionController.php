@@ -27,6 +27,10 @@ class TransactionController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $node = $request->attributes->get('authenticated_node');
+        if ($node->tipo === 'cajero' && $request->input('tipo') !== 'transferencia') {
+            return app(AtmOperationController::class)->store($request);
+        }
         $data = $request->validate([
             'tipo' => 'required|in:deposito,retiro,transferencia',
             'monto' => 'required|numeric|min:0.01|max:9999999999999.99|decimal:0,2',
@@ -34,11 +38,13 @@ class TransactionController extends Controller
             'cuenta_origen' => 'required_if:tipo,retiro,transferencia|prohibited_if:tipo,deposito|string|nullable',
             'cuenta_destino' => 'required_if:tipo,deposito,transferencia|prohibited_if:tipo,retiro|string|nullable|different:cuenta_origen',
         ]);
-        $node = $request->attributes->get('authenticated_node');
 
         try {
             $result = DB::transaction(function () use ($data, $node): array {
                 DB::select('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [$data['idempotency_key']]);
+                if (DB::table('atm_operation_results')->where('idempotency_key', $data['idempotency_key'])->exists()) {
+                    throw new DomainException('La clave de idempotencia pertenece a otra operación.', 409);
+                }
                 $existing = Transaction::where('idempotency_key', $data['idempotency_key'])->first();
                 if ($existing) {
                     $sameRequest = $existing->nodo_id === $node->id
@@ -84,7 +90,7 @@ class TransactionController extends Controller
                     'monto' => $amount,
                     'tipo' => $data['tipo'],
                     'idempotency_key' => $data['idempotency_key'],
-                ]);
+                ])->refresh();
 
                 return ['transaction' => $transaction, 'repeated' => false];
             });
@@ -94,7 +100,12 @@ class TransactionController extends Controller
                 'transaction' => $result['transaction'],
             ], $result['repeated'] ? 200 : 201);
         } catch (DomainException $exception) {
-            return response()->json(['message' => $exception->getMessage()], $exception->getCode());
+            $body = ['message' => $exception->getMessage()];
+            if ($exception->getCode() === 409) {
+                $body['code'] = 'IDEMPOTENCY_CONFLICT';
+            }
+
+            return response()->json($body, $exception->getCode());
         }
     }
 }

@@ -10,7 +10,7 @@
     },
     {
       "key": "sucursal_url",
-      "value": "",
+      "value": "https://sucursal-nodo2.onrender.com",
       "type": "default",
       "enabled": true
     },

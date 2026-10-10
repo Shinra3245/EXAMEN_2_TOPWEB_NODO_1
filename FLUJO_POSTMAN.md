@@ -35,6 +35,6 @@ Los indicadores son `permitir_operaciones` y `contratos_conjuntos_confirmados`. 
 
 Guardar el resultado real del Runner con fecha, URL de cada nodo, número de pruebas y fallos. Capturar la cuenta, el retiro y el saldo final; no incluir API Keys ni contraseñas. El historial de `/api/transactions` devuelve exclusivamente operaciones del nodo autenticado. Para comprobar un retiro usar `cajero_api_key`; con `sucursal_api_key` se comprueba el depósito de apertura. Las carpetas 01 y 02 ya usan la clave del cajero para buscar el retiro. El historial solo demuestra que hay un movimiento: la protección SQL contra actualización, borrado y truncado se verifica además con las pruebas PostgreSQL del Nodo 1.
 
-Estado de esta entrega: colección y scripts preparados; la ejecución conjunta de los nodos 2 y 3 está pendiente. No se han generado resultados simulados ni capturas de una integración todavía inexistente.
+Estado de esta entrega: colección y scripts preparados; el Nodo 2 ya fue verificado; la ejecución con la aplicación del Nodo 3 espera su URL. No se han generado resultados simulados ni capturas de una integración todavía inexistente.
 
 Validado el 9 de octubre de 2026: Nodo 1 en https://banco-central-nodo1.onrender.com, acceso administrativo y nodos de demostración creados. Carpetas 00 y 01 ejecutadas con Newman 6.2.2 (runtime de Postman): 13 solicitudes y 27 aserciones, cero fallos. Se comprobó el rechazo 401 con clave falsa y que el historial de cada nodo solo contiene sus propias operaciones. Carpetas 02 y 03 permanecen sin ejecutar.

@@ -8,6 +8,7 @@ use App\Models\UserAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class AccountController extends Controller
 {
@@ -25,7 +26,7 @@ class AccountController extends Controller
             'numero_cuenta' => 'required|string|max:255|unique:users_accounts,numero_cuenta',
             'nombre_titular' => 'required|string|max:255',
             'saldo_inicial' => 'required|numeric|min:0|max:9999999999999.99|decimal:0,2',
-            'idempotency_key' => 'required|string|max:255|unique:transactions,idempotency_key',
+            'idempotency_key' => 'required|string|max:255|unique:transactions,idempotency_key|unique:atm_operation_results,idempotency_key',
         ]);
 
         if ($validator->fails()) {
@@ -34,6 +35,11 @@ class AccountController extends Controller
 
         try {
             $result = DB::transaction(function () use ($request, $node) {
+                DB::select('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [$request->idempotency_key]);
+                if (DB::table('atm_operation_results')->where('idempotency_key', $request->idempotency_key)->exists()
+                    || Transaction::where('idempotency_key', $request->idempotency_key)->exists()) {
+                    throw ValidationException::withMessages(['idempotency_key' => ['La clave de idempotencia ya fue utilizada.']]);
+                }
                 // 1. Crear la cuenta
                 $account = UserAccount::create([
                     'numero_cuenta' => $request->numero_cuenta,
@@ -61,6 +67,8 @@ class AccountController extends Controller
                 'message' => 'Cuenta creada exitosamente',
                 'account' => $result,
             ], 201);
+        } catch (ValidationException $exception) {
+            return response()->json(['errors' => $exception->errors()], 422);
         } catch (\Exception $e) {
             report($e);
 

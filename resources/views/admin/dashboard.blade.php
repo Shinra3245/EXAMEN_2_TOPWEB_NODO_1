@@ -49,6 +49,10 @@
                     <td class="border-b p-2">
                         <form action="{{ route('admin.nodes.cash', $node->id) }}" method="POST" class="flex gap-2 items-center">
                             @csrf
+                            <input type="hidden" name="efectivo_anterior" value="{{ $node->efectivo_disponible }}">
+                            @if($node->tipo === 'cajero')
+                            <label class="text-xs"><input type="checkbox" name="confirmar_sin_pendientes" value="1" required> Coordinado con el cajero, sin operaciones pendientes</label>
+                            @endif
                             $<input type="number" step="0.01" min="0" name="efectivo_asignado" value="{{ $node->efectivo_disponible }}" class="border p-1 rounded w-24">
                             <button class="bg-blue-600 text-white px-2 py-1 rounded text-sm hover:bg-blue-700">Guardar</button>
                         </form>

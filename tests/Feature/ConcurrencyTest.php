@@ -9,6 +9,80 @@ use Tests\TestCase;
 
 class ConcurrencyTest extends TestCase
 {
+    public function test_concurrent_atm_withdrawals_from_different_accounts_do_not_overdraw_shared_cash(): void
+    {
+        [$nodeId, $key, $accounts] = $this->atm('1000.00');
+        $payloads = [];
+        foreach ($accounts as $number) {
+            $payloads[] = ['tipo' => 'retiro', 'cuenta_origen' => $number, 'monto' => '800.00', 'idempotency_key' => (string) Str::uuid()];
+        }
+
+        $results = $this->concurrentAtmRequests($key, $payloads);
+        $statuses = array_column($results, 'status');
+        sort($statuses);
+        $this->assertSame(['rejected', 'succeeded'], $statuses);
+        $rejected = array_values(array_filter($results, fn (array $result): bool => $result['status'] === 'rejected'))[0];
+        $this->assertSame('INSUFFICIENT_CASH', $rejected['error']['code']);
+        $this->assertSame('200.00', DB::table('bank_nodes')->where('id', $nodeId)->value('efectivo_disponible'));
+        $balances = DB::table('users_accounts')->whereIn('numero_cuenta', $accounts)->orderBy('saldo_global')->pluck('saldo_global')->all();
+        $this->assertSame(['200.00', '1000.00'], $balances);
+        $this->assertSame(1, DB::table('transactions')->where('nodo_id', $nodeId)->count());
+        $this->assertSame(2, DB::table('atm_operation_results')->where('nodo_id', $nodeId)->count());
+    }
+
+    public function test_concurrent_atm_retries_return_the_same_receipt_and_change_cash_once(): void
+    {
+        [$nodeId, $key, $accounts] = $this->atm('1500.00');
+        $payload = ['tipo' => 'retiro', 'cuenta_origen' => $accounts[0], 'monto' => '300.00', 'idempotency_key' => (string) Str::uuid()];
+
+        $results = $this->concurrentAtmRequests($key, [$payload, $payload]);
+
+        foreach ($results as &$result) {
+            ksort($result);
+            ksort($result['transaction']);
+        }
+        unset($result);
+        $this->assertSame($results[0], $results[1]);
+        $this->assertSame('succeeded', $results[0]['status']);
+        $this->assertSame('1200.00', DB::table('bank_nodes')->where('id', $nodeId)->value('efectivo_disponible'));
+        $this->assertSame('700.00', DB::table('users_accounts')->where('numero_cuenta', $accounts[0])->value('saldo_global'));
+        $this->assertSame(1, DB::table('transactions')->where('nodo_id', $nodeId)->count());
+        $this->assertSame(1, DB::table('atm_operation_results')->where('nodo_id', $nodeId)->count());
+    }
+
+    private function atm(string $cash): array
+    {
+        if (! getenv('BANK_CONCURRENCY_URL')) {
+            $this->markTestSkipped('Falta servidor HTTP PostgreSQL aislado.');
+        }
+        $nodeId = (string) Str::uuid();
+        $key = Str::random(60);
+        DB::table('bank_nodes')->insert(['id' => $nodeId, 'nombre' => 'Cajero concurrente', 'tipo' => 'cajero', 'responsable' => 'Pruebas', 'api_key_hash' => hash('sha256', $key), 'efectivo_disponible' => $cash]);
+        $numbers = ['CONC-A-'.Str::uuid(), 'CONC-B-'.Str::uuid()];
+        foreach ($numbers as $number) {
+            DB::table('users_accounts')->insert(['numero_cuenta' => $number, 'nombre_titular' => 'Prueba', 'sucursal_id' => $nodeId, 'saldo_global' => '1000.00']);
+        }
+
+        return [$nodeId, $key, $numbers];
+    }
+
+    private function concurrentAtmRequests(string $key, array $payloads): array
+    {
+        $url = rtrim(getenv('BANK_CONCURRENCY_URL'), '/').'/api/transactions';
+        $pool = Process::pool(function ($pool) use ($url, $key, $payloads): void {
+            foreach ($payloads as $payload) {
+                $pool->command(['curl', '--fail-with-body', '-sS', '-X', 'POST', $url, '-H', 'Content-Type: application/json', '-H', 'X-API-KEY: '.$key, '-d', json_encode($payload, JSON_THROW_ON_ERROR)]);
+            }
+        })->start()->wait();
+        $results = [];
+        foreach ($pool->collect() as $result) {
+            $this->assertContains($result->exitCode(), [0, 22], $result->errorOutput());
+            $results[] = json_decode($result->output(), true, 512, JSON_THROW_ON_ERROR);
+        }
+
+        return $results;
+    }
+
     /**
      * Prueba de concurrencia: intentamos hacer dos retiros simultáneos de 800
      * cuando el saldo es solo 1000. Uno debe fallar y el saldo quedar en 200.

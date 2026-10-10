@@ -3,7 +3,7 @@ info:
   title: API Banco Central - Sistema Bancario Distribuido
   description: Endpoints del núcleo del Banco Central para la comunicación con Sucursales
     y Cajeros (ATMs).
-  version: 1.0.2
+  version: 1.1.0
 servers:
 - url: https://banco-central-nodo1.onrender.com/api
   description: Nodo 1 desplegado y validado en Render
@@ -73,7 +73,10 @@ paths:
       summary: Registrar transacción (Retiro/Depósito/Transferencia)
       description: Operaciones atómicas con bloqueo de cuentas y serialización por
         idempotency_key. Un reintento conserva nodo, tipo, cuentas y monto; la misma
-        operación retorna la transacción existente sin repetir cambios.
+        operación retorna la transacción existente sin repetir cambios. Para retiros
+        y depósitos de cajeros se actualizan saldo, efectivo, ledger y comprobante
+        durable en la misma transacción. Repetir la clave devuelve los saldos originales.
+        Sucursales y transferencias mantienen el contrato anterior.
       security:
       - ApiKeyAuth: []
       requestBody:
@@ -94,33 +97,84 @@ paths:
                   - deposito
                   - transferencia
                 monto:
-                  type: number
-                  minimum: 0.01
+                  oneOf:
+                  - type: number
+                    minimum: 0.01
+                    maximum: 9999999999999.99
+                  - type: string
+                    pattern: ^[0-9]+(\.[0-9]{1,2})?$
+                    example: '300.00'
                 cuenta_origen:
                   type: string
                 cuenta_destino:
                   type: string
                 idempotency_key:
                   type: string
+                  maxLength: 255
+                  description: Texto hasta 255 caracteres. NODE3 genera UUID; NODE2
+                    conserva su prefijo sucursal:.
       responses:
         '201':
           description: Transacción aprobada y saldo actualizado.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/AtmReceipt'
+                - type: object
+                  required:
+                  - message
+                  - transaction
+                  properties:
+                    message:
+                      type: string
+                    transaction:
+                      $ref: '#/components/schemas/Transaction'
         '200':
           description: Transacción procesada previamente (Idempotencia).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/AtmReceipt'
+                - type: object
+                  required:
+                  - message
+                  - transaction
+                  properties:
+                    message:
+                      type: string
+                    transaction:
+                      $ref: '#/components/schemas/Transaction'
         '400':
           description: Fondos insuficientes o cuenta no encontrada/inactiva.
         '422':
-          description: Errores de validación.
+          description: 'Validación compartida: errors. Cajero: rechazo durable con
+            status=rejected y código de negocio; sin saldo ni ledger modificado. Una
+            petición sin clave válida no es recuperable.'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/AtmRejection'
+                - type: object
         '409':
-          description: La clave de idempotencia ya pertenece a una operación con otros
-            datos o a otro nodo.
+          description: Conflicto de cuerpo o propietario. Mantiene message de texto;
+            sucursal añade code=IDEMPOTENCY_CONFLICT y cajero error.code=IDEMPOTENCY_CONFLICT.
         '401':
           description: API Key ausente, inválida o de nodo inactivo.
+        '202':
+          description: Solo reintento de movimiento histórico sin comprobante original;
+            conserva pending.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pending'
     get:
       summary: Consultar historial de transacciones
       description: Devuelve exclusivamente las operaciones procesadas por el nodo
-        autenticado (nodo_id), filtrables por cuenta. La sucursal no ve retiros
-        procesados por un cajero; el saldo global se consulta en /accounts/{numero_cuenta}.
+        autenticado (nodo_id), filtrables por cuenta. La sucursal no ve retiros procesados
+        por un cajero; el saldo global se consulta en /accounts/{numero_cuenta}.
       security:
       - ApiKeyAuth: []
       parameters:
@@ -130,14 +184,203 @@ paths:
         schema:
           type: string
         description: Filtrar transacciones por número de cuenta (origen o destino).
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+        description: 50 movimientos por página; se conservan data, next_page_url y
+          last_page.
       responses:
         '200':
           description: Lista paginada de transacciones.
         '401':
           description: API Key ausente, inválida o de nodo inactivo.
+  /nodes/me:
+    get:
+      summary: Identificar el nodo autenticado y consultar su efectivo actual
+      security: &id001
+      - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Sucursal o cajero activo; no incluye hashes ni claves.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                    - id
+                    - nombre
+                    - tipo
+                    - activo
+                    - efectivo_disponible
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      nombre:
+                        type: string
+                      tipo:
+                        type: string
+                        enum:
+                        - sucursal
+                        - cajero
+                      activo:
+                        type: boolean
+                      efectivo_disponible:
+                        type: string
+                        example: '1500.00'
+        '401':
+          description: API Key ausente, inválida o nodo inactivo; error de texto.
+  /transactions/by-idempotency-key/{clave}:
+    get:
+      summary: Recuperar el resultado durable de una operación del nodo autenticado
+      description: No expone comprobantes de otros nodos. Espera el bloqueo de una
+        operación en curso. Operaciones antiguas sin saldos originales devuelven pending;
+        nunca se vuelven a aplicar. Los comprobantes se conservan durante la vida
+        de los datos.
+      security: *id001
+      parameters:
+      - name: clave
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 255
+      responses:
+        '200':
+          description: Resultado original aprobado o rechazo definitivo.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/AtmReceipt'
+                - $ref: '#/components/schemas/AtmRejection'
+        '202':
+          description: Movimiento histórico sin comprobante ATM completo; necesita
+            revisión manual.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pending'
+        '404':
+          description: No existe resultado ni movimiento del nodo para esta clave.
+            Únicamente OPERATION_NOT_FOUND autoriza reenviar mismo cuerpo y clave.
+          content:
+            application/json:
+              example:
+                error:
+                  code: OPERATION_NOT_FOUND
+                  message: Operación no encontrada
+        '401':
+          description: API Key ausente, inválida o nodo inactivo; error de texto.
 components:
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
       in: header
       name: X-API-KEY
+  schemas:
+    AtmReceipt:
+      type: object
+      required:
+      - message
+      - status
+      - transaction
+      - saldo_global
+      - efectivo_disponible
+      properties:
+        message:
+          type: string
+        status:
+          type: string
+          enum:
+          - succeeded
+        transaction:
+          $ref: '#/components/schemas/Transaction'
+        saldo_global:
+          type: string
+          example: '700.00'
+        efectivo_disponible:
+          type: string
+          example: '1200.00'
+    Transaction:
+      type: object
+      required:
+      - id
+      - nodo_id
+      - tipo
+      - monto
+      - idempotency_key
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        nodo_id:
+          type: string
+          format: uuid
+        tipo:
+          type: string
+          enum:
+          - retiro
+          - deposito
+          - transferencia
+        cuenta_origen:
+          type: string
+          nullable: true
+        cuenta_destino:
+          type: string
+          nullable: true
+        monto:
+          type: string
+          example: '300.00'
+        idempotency_key:
+          type: string
+          maxLength: 255
+        created_at:
+          type: string
+          description: Fecha PostgreSQL con zona horaria generada por la base.
+    AtmRejection:
+      type: object
+      required:
+      - status
+      - idempotency_key
+      - error
+      properties:
+        status:
+          type: string
+          enum:
+          - rejected
+        idempotency_key:
+          type: string
+        error:
+          type: object
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: string
+              enum:
+              - INSUFFICIENT_FUNDS
+              - INSUFFICIENT_CASH
+              - ACCOUNT_BLOCKED
+              - ACCOUNT_NOT_FOUND
+              - VALIDATION_ERROR
+            message:
+              type: string
+    Pending:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          enum:
+          - pending

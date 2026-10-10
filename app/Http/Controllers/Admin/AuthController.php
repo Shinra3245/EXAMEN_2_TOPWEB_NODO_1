@@ -52,6 +52,7 @@ class AuthController extends Controller
             'admin_authenticated' => true,
             'supabase_access_token' => $data['access_token'],
             'supabase_refresh_token' => $data['refresh_token'],
+            'supabase_expires_at' => now()->timestamp + (int) ($data['expires_in'] ?? 3600),
             'admin_user_id' => $userId,
             'admin_name' => $admin->nombre,
         ]);
