@@ -1701,6 +1701,51 @@
           ]
         }
       ]
+    },
+    {
+      "name": "05 Señal Realtime del panel",
+      "item": [
+        {
+          "name": "Nuevo depósito de apertura para avisar al panel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sucursal_url}}/api/cuentas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"titular\":\"Demo Realtime {{$guid}}\",\"saldo_inicial\":0.01,\"idempotency_key\":\"{{$guid}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+                  "const d=pm.response.json();",
+                  "pm.test(\"Apertura Realtime de demostración\",()=>pm.expect(d.saldo).to.eql(0.01));",
+                  "pm.environment.set(\"realtime_account\",d.numero_cuenta);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

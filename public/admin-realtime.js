@@ -38,7 +38,9 @@
                 try { message = JSON.parse(data); } catch { return; }
                 if (message.event === 'phx_reply' && message.ref === joinRef) {
                     status.textContent = message.payload?.status === 'ok' ? 'Actualizaciones en tiempo real conectadas.' : 'Actualizaciones desconectadas. Vuelve a iniciar sesión.';
+                    if (message.payload?.status !== 'ok') socket.close();
                 }
+                if (message.event === 'phx_error') socket.close();
                 if (message.event === 'broadcast' && message.payload?.event === 'transactions_changed') {
                     status.textContent = 'Se registró un nuevo movimiento.';
                     refresh.hidden = false;
