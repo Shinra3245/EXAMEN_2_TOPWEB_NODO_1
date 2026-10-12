@@ -20,7 +20,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
                 </svg>
-                <h1 class="text-2xl font-serif font-bold tracking-wide">Banco Central</h1>
+                <h1 class="text-2xl font-serif font-bold tracking-wide">Banco no Central</h1>
             </div>
             
             @if(session('admin_authenticated'))
